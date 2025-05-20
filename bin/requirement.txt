@@ -1,0 +1,16 @@
+sale
+purchase entry
+purchase return entry
+sale return entry
+expiry entry
+quotation
+debit note
+credit note
+add product
+add groups and subgroups
+notify before 90days from expiry date
+stock report
+purchase report
+sale report
+expiry report
+barcode print
