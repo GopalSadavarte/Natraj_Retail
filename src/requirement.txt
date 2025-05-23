@@ -14,3 +14,4 @@ purchase report
 sale report
 expiry report
 barcode print
+analytics with charts
