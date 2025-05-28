@@ -6,7 +6,7 @@ import java.awt.*;
 
 public class Login extends JFrame {
     protected final Toolkit toolkit = Toolkit.getDefaultToolkit();
-
+    
     public Login() {
         setUndecorated(true);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
