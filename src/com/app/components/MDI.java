@@ -21,11 +21,20 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
 import javax.swing.*;
+import javax.swing.event.*;
 
 public class MDI extends Navbar {
+
     JInternalFrame frame;
     JDesktopPane desktop = new JDesktopPane();
     HashMap<String, JInternalFrame> frameTracker = new HashMap<>();
+    HashMap<JInternalFrame, String> frameKeyMap = new HashMap<>();
+    InternalFrameAdapter internalFrameListener = new InternalFrameAdapter() {
+        public void internalFrameClosing(InternalFrameEvent e) {
+            String key = frameKeyMap.get(e.getInternalFrame());
+            frameTracker.remove(key);
+        }
+    };
 
     public MDI() {
         setContentPane(desktop);
@@ -68,6 +77,21 @@ public class MDI extends Navbar {
                     ActionEvent event = new ActionEvent(keyEvent.getSource(), 2, "Expiry Entry Ctrl+E");
                     actionPerformed(event);
                     return true;
+                }
+
+                if (key.toLowerCase().equals("escape") && desktop.getAllFrames().length > 0) {
+                    frame = desktop.getSelectedFrame();
+                    if (frame instanceof SaleBill) {
+                        boolean res = JOptionPane.showConfirmDialog(this, "Are you sure to exit?", "Confirmation",
+                                JOptionPane.OK_CANCEL_OPTION) == 0;
+                        if (res) {
+                            frameTracker.remove(frameKeyMap.get(frame));
+                            frame.dispose();
+                        }
+                    } else {
+                        frameTracker.remove(frameKeyMap.get(frame));
+                        frame.dispose();
+                    }
                 }
             }
             return false;
@@ -353,9 +377,17 @@ public class MDI extends Navbar {
         if (frame != null) {
             desktop.add(frame);
             frameTracker.put(key, frame);
+            frameKeyMap.put(frame, key);
             frame.toFront();
+            frame.addInternalFrameListener(internalFrameListener);
         } else {
-            frameTracker.get(key).toFront();
+            frame = frameTracker.get(key);
+            frame.toFront();
+        }
+        try {
+            frame.setSelected(true);
+        } catch (Exception exc) {
+            System.out.println(exc.getMessage() + " at MDI.java 390");
         }
     }
 }
