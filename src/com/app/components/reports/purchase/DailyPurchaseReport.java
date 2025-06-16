@@ -6,6 +6,7 @@ import java.awt.*;
 public class DailyPurchaseReport extends JInternalFrame{
     public DailyPurchaseReport(){
         super("Daily Purchase Report", false, true, true);
+        setBackground(Color.white);
 
         setSize(Toolkit.getDefaultToolkit().getScreenSize());
         setVisible(true);

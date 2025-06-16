@@ -31,13 +31,28 @@ public class MDI extends Navbar {
     HashMap<JInternalFrame, String> frameKeyMap = new HashMap<>();
     InternalFrameAdapter internalFrameListener = new InternalFrameAdapter() {
         public void internalFrameClosing(InternalFrameEvent e) {
-            String key = frameKeyMap.get(e.getInternalFrame());
-            frameTracker.remove(key);
+            JInternalFrame frame = e.getInternalFrame();
+            if (frame instanceof SaleBill) {
+                boolean res = JOptionPane.showConfirmDialog(MDI.this, "Are you sure to exit?", "Confirmation",
+                        JOptionPane.OK_CANCEL_OPTION) == 0;
+                if (res) {
+                    String key = frameKeyMap.get(frame);
+                    frameTracker.remove(key);
+                    frame.dispose();
+                }
+            } else {
+                String key = frameKeyMap.get(frame);
+                frameTracker.remove(key);
+            }
         }
     };
+    ImageIcon icon = new ImageIcon(MDI.class.getResource("logo.jpg"));
+    int optionPaneCount = 0;
 
     public MDI() {
+        setBackground(Color.white);
         setContentPane(desktop);
+        setIconImage(icon.getImage());
         desktop.add(new Home(), JLayeredPane.DEFAULT_LAYER);
         setShortcuts();
         setVisible(true);
@@ -49,45 +64,57 @@ public class MDI extends Navbar {
             String modifier = InputEvent.getModifiersExText(keyEvent.getModifiersEx());
             if (keyEvent.getID() == KeyEvent.KEY_PRESSED) {
                 if (key.toLowerCase().equals("p") && modifier.toLowerCase().equals("ctrl")) {
-                    ActionEvent event = new ActionEvent(keyEvent.getSource(), WIDTH, "Purchase Entry Ctrl+P");
+                    ActionEvent event = new ActionEvent(sources.get(
+                            "Purchase Entry Ctrl+P"), WIDTH, "Purchase Entry Ctrl+P");
                     actionPerformed(event);
                     return true;
                 }
                 if (key.toLowerCase().equals("p") && modifier.toLowerCase().equals("ctrl+alt")) {
-                    ActionEvent event = new ActionEvent(keyEvent.getSource(), WIDTH, "Purchase Return Ctrl+Alt+P");
+                    ActionEvent event = new ActionEvent(sources.get(
+                            "Purchase Return Ctrl+Alt+P"), WIDTH, "Purchase Return Ctrl+Alt+P");
                     actionPerformed(event);
                     return true;
                 }
                 if (key.toLowerCase().equals("i") && modifier.toLowerCase().equals("alt")) {
-                    ActionEvent event = new ActionEvent(keyEvent.getSource(), 2, "Product Alt+I");
+                    ActionEvent event = new ActionEvent(sources.get(
+                            "Product Alt+I"), 2, "Product Alt+I");
                     actionPerformed(event);
                     return true;
                 }
                 if (key.toLowerCase().equals("s") && modifier.toLowerCase().equals("ctrl")) {
-                    ActionEvent event = new ActionEvent(keyEvent.getSource(), 2, "Sale Ctrl+S");
+                    ActionEvent event = new ActionEvent(sources.get(
+                            "Sale Ctrl+S"), 2, "Sale Ctrl+S");
                     actionPerformed(event);
                     return true;
                 }
                 if (key.toLowerCase().equals("s") && modifier.toLowerCase().equals("ctrl+alt")) {
-                    ActionEvent event = new ActionEvent(keyEvent.getSource(), 2, "Sales Return Ctrl+Alt+S");
+                    ActionEvent event = new ActionEvent(sources.get(
+                            "Sales Return Ctrl+Alt+S"), 2, "Sales Return Ctrl+Alt+S");
                     actionPerformed(event);
                     return true;
                 }
                 if (key.toLowerCase().equals("e") && modifier.toLowerCase().equals("ctrl")) {
-                    ActionEvent event = new ActionEvent(keyEvent.getSource(), 2, "Expiry Entry Ctrl+E");
+                    ActionEvent event = new ActionEvent(sources.get(
+                            "Expiry Entry Ctrl+E"), 2, "Expiry Entry Ctrl+E");
                     actionPerformed(event);
                     return true;
                 }
 
                 if (key.toLowerCase().equals("escape") && desktop.getAllFrames().length > 0) {
                     frame = desktop.getSelectedFrame();
-                    if (frame instanceof SaleBill) {
+                    if (dialogBox.isVisible()) {
+                        dialogBox.setVisible(false);
+                        return true;
+                    }
+                    if (frame instanceof SaleBill && optionPaneCount == 0) {
+                        optionPaneCount = 1;
                         boolean res = JOptionPane.showConfirmDialog(this, "Are you sure to exit?", "Confirmation",
                                 JOptionPane.OK_CANCEL_OPTION) == 0;
                         if (res) {
                             frameTracker.remove(frameKeyMap.get(frame));
                             frame.dispose();
                         }
+                        optionPaneCount = 0;
                     } else {
                         frameTracker.remove(frameKeyMap.get(frame));
                         frame.dispose();
@@ -99,52 +126,59 @@ public class MDI extends Navbar {
     }
 
     public void actionPerformed(ActionEvent e) {
+
         String action = e.getActionCommand();
+        JMenuItem source = (JMenuItem) e.getSource();
         frame = null;
         String key = null;
+
         switch (action) {
             case "BackUp And Exit":
-                boolean res = JOptionPane.showConfirmDialog(this, "Are you sure to exit!") == 0;
-                if (res)
+                boolean res = JOptionPane.showConfirmDialog(this, "Are you sure to exit?", "Confirmation",
+                        JOptionPane.OK_CANCEL_OPTION) == 0;
+                if (res) {
+                    dialogBox.dispose();
                     dispose();
+                }
                 return;
             case "Purchase Entry Ctrl+P":
                 if (!frameTracker.containsKey("Purchase Entry Ctrl+P"))
-                    frame = new PurchaseEntry();
+                    frame = new PurchaseEntry(dialogBox);
                 key = "Purchase Entry Ctrl+P";
                 break;
             case "Purchase Return Ctrl+Alt+P":
                 if (!frameTracker.containsKey("Purchase Return Ctrl+Alt+P"))
-                    frame = new PurchaseReturn();
+                    frame = new PurchaseReturn(dialogBox);
                 key = "Purchase Return Ctrl+Alt+P";
                 break;
             case "Product Alt+I":
                 if (!frameTracker.containsKey("Product Alt+I"))
-                    frame = new Product();
+                    frame = new Product(source, frameTracker, frameKeyMap, dialogBox);
                 key = "Product Alt+I";
                 break;
             case "Group":
                 if (!frameTracker.containsKey("Group"))
-                    frame = new Group();
+                    frame = new Group(source, frameTracker, frameKeyMap, dialogBox);
                 key = "Group";
                 break;
             case "Sub Group":
-                if (!frameTracker.containsKey("Sub Group"))
-                    frame = new SubGroup();
+                if (!frameTracker.containsKey("Sub Group")) {
+                    frame = new SubGroup(source, frameTracker, frameKeyMap, dialogBox);
+                }
                 key = "Sub Group";
                 break;
             case "Sale Ctrl+S":
-                frame = new SaleBill();
+                frame = new SaleBill(source, frameTracker, frameKeyMap, dialogBox);
                 key = "sale";
                 break;
             case "Sales Return Ctrl+Alt+S":
                 if (!frameTracker.containsKey("Sales Return Ctrl+Alt+S"))
-                    frame = new SalesReturnEntry();
+                    frame = new SalesReturnEntry(dialogBox);
                 key = "Sales Return Ctrl+Alt+S";
                 break;
             case "Expiry Entry Ctrl+E":
                 if (!frameTracker.containsKey("Expiry Entry Ctrl+E"))
-                    frame = new ExpiryEntry();
+                    frame = new ExpiryEntry(dialogBox);
                 key = "Expiry Entry Ctrl+E";
                 break;
             case "Near Expiry":
@@ -274,7 +308,7 @@ public class MDI extends Navbar {
                 break;
             case "Quotation":
                 if (!frameTracker.containsKey("Quotation"))
-                    frame = new Quotation();
+                    frame = new Quotation(dialogBox);
                 key = "Quotation";
                 break;
             case "Debit Note":

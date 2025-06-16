@@ -6,6 +6,7 @@ import java.awt.*;
 public class YearlySalesReturnReport extends JInternalFrame{
     public YearlySalesReturnReport(){
         super("Yearly Sales Return Report", false, true, true);
+        setBackground(Color.white);
 
         setSize(Toolkit.getDefaultToolkit().getScreenSize());
         setVisible(true);

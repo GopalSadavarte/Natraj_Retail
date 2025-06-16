@@ -7,6 +7,7 @@ public class MonthlyExpiryChart extends JInternalFrame{
     public MonthlyExpiryChart(){
         super("Monthly Expiry Analysis", false, true, true);
         setSize(Toolkit.getDefaultToolkit().getScreenSize());
+        setBackground(Color.white);
         setVisible(true);
     }
 }

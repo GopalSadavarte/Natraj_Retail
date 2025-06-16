@@ -12,6 +12,7 @@ public class Login extends JFrame {
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setLayout(new FlowLayout());
         setSize(500, 300);
+        setBackground(Color.white);
         Dimension size = toolkit.getScreenSize();
         int x = (int) ((size.getWidth() - 500) / 2);
         int y = (int) ((size.getHeight() - 300) / 2);

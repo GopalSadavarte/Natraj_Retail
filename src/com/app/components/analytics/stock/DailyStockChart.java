@@ -6,6 +6,7 @@ import java.awt.*;
 public class DailyStockChart extends JInternalFrame{
     public DailyStockChart(){
         super("Daily Stock Analysis", false, true, true);
+        setBackground(Color.white);
 
         setSize(Toolkit.getDefaultToolkit().getScreenSize());
         setVisible(true);

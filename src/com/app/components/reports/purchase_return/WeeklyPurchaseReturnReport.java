@@ -6,6 +6,7 @@ import java.awt.*;
 public class WeeklyPurchaseReturnReport extends JInternalFrame{
     public WeeklyPurchaseReturnReport(){
         super("Weekly Purchase Return Report", false, true, true);
+        setBackground(Color.white);
 
         setSize(Toolkit.getDefaultToolkit().getScreenSize());
         setVisible(true);

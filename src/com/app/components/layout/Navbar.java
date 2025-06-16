@@ -3,11 +3,11 @@ package com.app.components.layout;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.*;
 import com.app.partials.interfaces.*;
 
 public abstract class Navbar extends JFrame implements ActionListener, AppConstants {
 
-    final Toolkit toolkit = Toolkit.getDefaultToolkit();
     final String[] menuStrings = new String[] { "Purchase", "Sale", "Expiry", "Report", "Utilities",
             "Analytics", "Setting",
             "BackUp And Exit" };
@@ -24,24 +24,27 @@ public abstract class Navbar extends JFrame implements ActionListener, AppConsta
             { "available", "required", "less sold", "Yearly" }, { "Daily", "Weekly", "Monthly", "Yearly" },
             { "Daily", "Weekly", "Monthly", "Yearly" }, { "Daily", "Weekly", "Monthly", "Yearly" }
     };
-    final JMenuBar menubar;
+    final JMenuBar menubar = new JMenuBar();
+    protected final HashMap<String, JMenuItem> sources = new HashMap<>();
+    protected final static JDialog dialogBox = new JDialog();
 
     public Navbar() {
         setSize(toolkit.getScreenSize());
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
 
-        menubar = new JMenuBar();
+        dialogBox.getContentPane().setBackground(Color.white);
         menubar.setLayout(new FlowLayout());
+        menubar.setBackground(Color.white);
         int k = 0;
         for (int i = 0; i < menuStrings.length; i++) {
 
             if (i == (menuStrings.length - 1)) {
                 JMenuItem menuItem = new JMenuItem(menuStrings[i]);
                 menuItem.addActionListener(this);
-                if (i == 0) {
-                    menuItem.setPreferredSize(new Dimension(60, 30));
-                }
                 menuItem.setFont(menuFont);
+                menuItem.setBackground(Color.white);
+                menuItem.setForeground(Color.red);
+                sources.put(menuItem.getText(), menuItem);
                 menubar.add(menuItem);
                 continue;
             }
@@ -57,6 +60,7 @@ public abstract class Navbar extends JFrame implements ActionListener, AppConsta
                         item.addActionListener(this);
                         item.setActionCommand(menuItemStrings[k][j] + " " + reportItemStrings[j][m]);
                         item.setFont(menuFont);
+                        sources.put(item.getText(), item);
                         subMenu.add(item);
                     }
                     menu.add(subMenu);
@@ -69,6 +73,7 @@ public abstract class Navbar extends JFrame implements ActionListener, AppConsta
                 JMenuItem menuItem = new JMenuItem(menuItemStrings[k][j]);
                 menuItem.addActionListener(this);
                 menuItem.setFont(menuFont);
+                sources.put(menuItem.getText(), menuItem);
                 menu.add(menuItem);
             }
             k++;
@@ -80,6 +85,7 @@ public abstract class Navbar extends JFrame implements ActionListener, AppConsta
                 boolean res = JOptionPane.showConfirmDialog(Navbar.this, "Are you sure to exit?", "Confirmation",
                         JOptionPane.OK_CANCEL_OPTION) == 0;
                 if (res) {
+                    dialogBox.dispose();
                     dispose();
                 }
             }
