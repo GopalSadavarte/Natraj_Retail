@@ -39,6 +39,8 @@ public class ProductView extends JPanel implements AppConstants, Validation {
     table = new JTable(tableModel);
     sorter = new TableRowSorter<TableModel>(tableModel);
     table.setRowSorter(sorter);
+    table.setSelectionBackground(skyBlue);
+    table.setSelectionForeground(Color.white);
     table.setFont(labelFont);
     table.setRowHeight(30);
 

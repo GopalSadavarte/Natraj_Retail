@@ -421,7 +421,7 @@ public class MDI extends Navbar {
         try {
             frame.setSelected(true);
         } catch (Exception exc) {
-            System.out.println(exc.getMessage() + " at MDI.java 390");
+            System.out.println(exc.getMessage() + " at MDI.java 422");
         }
     }
 }

@@ -1,7 +1,7 @@
 package com.app.components.auth;
 
 import javax.swing.*;
-import com.app.components.MDI;
+// import com.app.components.MDI;
 import java.awt.*;
 
 public class Login extends JFrame {

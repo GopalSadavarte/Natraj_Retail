@@ -1,20 +1,15 @@
 package com.app.components.purchase;
 
 import javax.swing.*;
-import javax.swing.filechooser.FileNameExtensionFilter;
-
+import javax.swing.filechooser.*;
 import com.app.components.abstracts.AbstractButton;
-import com.app.components.purchase.support.ProductView;
-import com.app.config.DBConnection;
-import com.app.partials.event.CustomKeyListener;
-
+import com.app.components.purchase.support.*;
+import com.app.config.*;
+import com.app.partials.event.*;
 import java.awt.*;
 import java.awt.event.*;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+import java.io.*;
+import java.sql.*;
 import java.util.*;
 
 public final class Product extends AbstractButton {

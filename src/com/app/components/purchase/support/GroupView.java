@@ -36,6 +36,8 @@ public class GroupView extends JPanel implements AppConstants, Validation {
     sorter = new TableRowSorter<TableModel>(tableModel);
     table.setRowSorter(sorter);
     table.setFont(labelFont);
+    table.setSelectionBackground(skyBlue);
+    table.setSelectionForeground(Color.white);
     table.setRowHeight(30);
 
     JTableHeader header = table.getTableHeader();

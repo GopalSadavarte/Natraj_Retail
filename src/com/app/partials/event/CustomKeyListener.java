@@ -1,10 +1,7 @@
 package com.app.partials.event;
 
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
-import javax.swing.JButton;
-import javax.swing.JComponent;
-import javax.swing.JTextField;
+import java.awt.event.*;
+import javax.swing.*;
 
 public class CustomKeyListener extends KeyAdapter {
     JComponent target;
