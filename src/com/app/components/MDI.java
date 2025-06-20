@@ -47,7 +47,7 @@ public class MDI extends Navbar {
         }
     };
     ImageIcon icon = new ImageIcon(MDI.class.getResource("logo.jpg"));
-    int optionPaneCount = 0;
+    public static int OPTION_PANE_COUNT = 0;
 
     public MDI() {
         setBackground(Color.white);
@@ -63,6 +63,7 @@ public class MDI extends Navbar {
             String key = KeyEvent.getKeyText(keyEvent.getKeyCode());
             String modifier = InputEvent.getModifiersExText(keyEvent.getModifiersEx());
             if (keyEvent.getID() == KeyEvent.KEY_PRESSED) {
+                frame = desktop.getSelectedFrame();
                 if (key.toLowerCase().equals("p") && modifier.toLowerCase().equals("ctrl")) {
                     ActionEvent event = new ActionEvent(sources.get(
                             "Purchase Entry Ctrl+P"), WIDTH, "Purchase Entry Ctrl+P");
@@ -100,25 +101,37 @@ public class MDI extends Navbar {
                     return true;
                 }
 
+                if ((key.equals("F5") || key.equals("F7")) && frame instanceof SaleBill && OPTION_PANE_COUNT == 0) {
+                    SaleBill bill = (SaleBill) frame;
+                    OPTION_PANE_COUNT = 1;
+                    if (key.equals("F5"))
+                        bill.getPrintOption().setSelectedItem("Yes");
+                    else
+                        bill.getPrintOption().setSelectedItem("No");
+                    bill.getSaveBtn().doClick();
+                    OPTION_PANE_COUNT = 0;
+                    return true;
+                }
+
                 if (key.toLowerCase().equals("escape") && desktop.getAllFrames().length > 0) {
-                    frame = desktop.getSelectedFrame();
                     if (dialogBox.isVisible()) {
                         dialogBox.setVisible(false);
                         return true;
                     }
-                    if (frame instanceof SaleBill && optionPaneCount == 0) {
-                        optionPaneCount = 1;
-                        boolean res = JOptionPane.showConfirmDialog(this, "Are you sure to exit?", "Confirmation",
+                    if (frame instanceof SaleBill && OPTION_PANE_COUNT == 0) {
+                        OPTION_PANE_COUNT = 1;
+                        boolean res = JOptionPane.showConfirmDialog(null, "Are you sure to exit?", "Confirmation",
                                 JOptionPane.OK_CANCEL_OPTION) == 0;
                         if (res) {
                             frameTracker.remove(frameKeyMap.get(frame));
                             frame.dispose();
                         }
-                        optionPaneCount = 0;
+                        OPTION_PANE_COUNT = 0;
                     } else {
                         frameTracker.remove(frameKeyMap.get(frame));
                         frame.dispose();
                     }
+                    return true;
                 }
             }
             return false;

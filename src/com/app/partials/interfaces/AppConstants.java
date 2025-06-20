@@ -9,7 +9,7 @@ public interface AppConstants {
 
     Toolkit toolkit = Toolkit.getDefaultToolkit();
     FlowLayout flowLayoutCenter = new FlowLayout(FlowLayout.CENTER);
-    FlowLayout flowLayoutLeft = new FlowLayout(FlowLayout.LEFT, 20, 5);
+    FlowLayout flowLayoutLeft = new FlowLayout(FlowLayout.LEFT, 12, 5);
 
     Font menuFont = new Font("Arial", 15, 20);
     Font appHeadingFont = new Font("Cambria", 130, 130);

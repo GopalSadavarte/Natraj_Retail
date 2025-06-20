@@ -11,17 +11,17 @@ import java.util.*;
 
 public final class SaleBill extends AbstractButton implements PropertyChangeListener {
 
-    JLabel headingLabel, dateLabel, billNoLabel, counterNoLabel, custNameLabel, custMobileLabel, pIdLabel,
-            pBarcodeLabel,
-            pNameLabel, pQtyLabel, pRateLabel, pMRPLabel, billAmtLabel, returnAmtLabel, paidAmtLabel, pBillAmtLabel,
+    JLabel lastScannedItemLabel, dateLabel, billNoLabel, counterNoLabel, custNameLabel, custMobileLabel, pIdLabel,
+            pBarcodeLabel, printLabel,
+            pQtyLabel, pRateLabel, pMRPLabel, billAmtLabel, returnAmtLabel, paidAmtLabel, pBillAmtLabel,
             lpBillAmtLabel, pBillNoLabel, lpBillNoLabel, paymentTypeLabel, totalQtyLabel, pDiscLabel;
-    JPanel mainPanel, sidePanel, headingPanel, billInfoPanel, custInfoPanel, billFormPanel, bottomPanel;
+    JPanel mainPanel, sidePanel, lastScannedItemPanel, billInfoPanel, custInfoPanel, billFormPanel, bottomPanel;
     JTextField billNoField, counterNoField, custNameField, mobileField, pBarcodeField, pIdField, pNameField, pQtyField,
-            pRateField,
+            pRateField, lastScannedItemField,
             pMRPField, billAmtField, returnAmtField, paidAmtField, pBillNoField, lpBillNoField, pBillAmtField,
             lpBillAmtField, totalQtyField, pDiscField;
     JDateChooser dateChooser;
-    JComboBox<String> paymentTypes;
+    JComboBox<String> paymentTypes, printOptions;
     JTable billTable;
     DefaultTableModel tableModel;
     TableRowSorter<TableModel> sorter;
@@ -31,7 +31,7 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
     public SaleBill(JMenuItem currentMenu, HashMap<String, JInternalFrame> frameTracker,
             HashMap<JInternalFrame, String> frameKeyMap, final JDialog dialog) {
 
-        super("Sale Bill", currentMenu, frameTracker, frameKeyMap, dialog);
+        super("Bill Information", currentMenu, frameTracker, frameKeyMap, dialog);
         setBackground(Color.white);
         setLayout(new FlowLayout(FlowLayout.LEFT, 10, 10));
         setSize(toolkit.getScreenSize());
@@ -47,18 +47,23 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         sidePanel.setPreferredSize(new Dimension(1330 - 150, 595));
         sidePanel.setBorder(border);
 
-        headingPanel = new JPanel(flowLayoutLeft);
-        headingPanel.setBackground(Color.white);
-        headingPanel.setPreferredSize(innerPanelSize);
+        lastScannedItemPanel = new JPanel(flowLayoutLeft);
+        lastScannedItemPanel.setBackground(Color.white);
+        lastScannedItemPanel.setPreferredSize(innerPanelSize);
+        lastScannedItemPanel.setBorder(border);
 
-        headingLabel = new JLabel("Bill Information");
-        headingLabel.setForeground(Color.darkGray);
-        headingLabel.setFont(headingFont2);
-        headingLabel.setBorder(border);
-        headingLabel.setPreferredSize(new Dimension(250, 35));
-        headingLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        lastScannedItemLabel = new JLabel("Last Scanned Item :");
+        lastScannedItemLabel.setForeground(Color.darkGray);
+        lastScannedItemLabel.setFont(labelFont);
 
-        headingPanel.add(headingLabel);
+        lastScannedItemField = new JTextField(50);
+        lastScannedItemField.setFont(labelFont);
+        lastScannedItemField.setEnabled(false);
+        lastScannedItemField.setText("product");
+        lastScannedItemField.setBackground(lemonYellow);
+
+        lastScannedItemPanel.add(lastScannedItemLabel);
+        lastScannedItemPanel.add(lastScannedItemField);
 
         billInfoPanel = new JPanel(flowLayoutLeft);
         billInfoPanel.setBackground(Color.white);
@@ -151,14 +156,13 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         custInfoPanel.add(custMobileLabel);
         custInfoPanel.add(mobileField);
 
-        billFormPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        billFormPanel = new JPanel(flowLayoutLeft);
         billFormPanel.setPreferredSize(innerPanelSize);
         billFormPanel.setBackground(Color.white);
         billFormPanel.setBorder(border);
 
         pBarcodeLabel = new JLabel("Barcode :");
         pBarcodeLabel.setFont(labelFont);
-        pBarcodeLabel.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 0));
 
         pBarcodeField = new JTextField(7);
         pBarcodeField.addFocusListener(this);
@@ -172,7 +176,7 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         billFormPanel.add(pBarcodeLabel);
         billFormPanel.add(pBarcodeField);
 
-        pIdLabel = new JLabel("Item Code:");
+        pIdLabel = new JLabel("Code:");
         pIdLabel.setFont(labelFont);
 
         pIdField = new JTextField(4);
@@ -184,22 +188,18 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         billFormPanel.add(pIdLabel);
         billFormPanel.add(pIdField);
 
-        pNameLabel = new JLabel("Item Name:");
-        pNameLabel.setFont(labelFont);
-
-        pNameField = new JTextField(15);
+        pNameField = new JTextField(18);
         pNameField.setBackground(lemonYellow);
         pNameField.setEnabled(false);
         pNameField.setFont(labelFont);
         pNameField.setDisabledTextColor(Color.darkGray);
 
-        billFormPanel.add(pNameLabel);
         billFormPanel.add(pNameField);
 
         pQtyLabel = new JLabel("Qty.:");
         pQtyLabel.setFont(labelFont);
 
-        pQtyField = new JTextField(3);
+        pQtyField = new JTextField(5);
         pQtyField.setBackground(lemonYellow);
         pQtyField.addFocusListener(this);
         pQtyField.addKeyListener(this);
@@ -240,15 +240,142 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         bottomPanel.setBorder(border);
         bottomPanel.setPreferredSize(innerPanelSize);
 
-        
+        pDiscLabel = new JLabel("Disc.Amt.:");
+        pDiscLabel.setFont(labelFont);
+
+        pDiscField = new JTextField(5);
+        pDiscField.setFont(labelFont);
+        pDiscField.setEnabled(false);
+        pDiscField.setDisabledTextColor(Color.darkGray);
+        pDiscField.setBackground(lemonYellow);
+        pDiscField.setText("343.43");
+
+        bottomPanel.add(pDiscLabel);
+        bottomPanel.add(pDiscField);
+
+        totalQtyLabel = new JLabel("T.Qty.:");
+        totalQtyLabel.setFont(labelFont);
+
+        totalQtyField = new JTextField(5);
+        totalQtyField.setEnabled(false);
+        totalQtyField.setDisabledTextColor(Color.darkGray);
+        totalQtyField.setText("12");
+        totalQtyField.setBackground(lemonYellow);
+        totalQtyField.setFont(labelFont);
+
+        bottomPanel.add(totalQtyLabel);
+        bottomPanel.add(totalQtyField);
+
+        lpBillNoLabel = new JLabel("L.P.No.");
+        lpBillNoLabel.setFont(labelFont);
+
+        lpBillNoField = new JTextField(2);
+        lpBillNoField.setText("1");
+        lpBillNoField.setEnabled(false);
+        lpBillNoField.setFont(labelFont);
+        lpBillNoField.setDisabledTextColor(Color.darkGray);
+        lpBillNoField.setBackground(lemonYellow);
+
+        bottomPanel.add(lpBillNoLabel);
+        bottomPanel.add(lpBillNoField);
+
+        pBillNoLabel = new JLabel("P.No.");
+        pBillNoLabel.setFont(labelFont);
+
+        pBillNoField = new JTextField(2);
+        pBillNoField.setText("1");
+        pBillNoField.setFont(labelFont);
+        pBillNoField.setEnabled(false);
+        pBillNoField.setDisabledTextColor(Color.darkGray);
+        pBillNoField.setBackground(lemonYellow);
+
+        bottomPanel.add(pBillNoLabel);
+        bottomPanel.add(pBillNoField);
+
+        lpBillAmtLabel = new JLabel("L.P.Amt.");
+        lpBillAmtLabel.setFont(labelFont);
+
+        lpBillAmtField = new JTextField(3);
+        lpBillAmtField.setText("1");
+        lpBillAmtField.setFont(labelFont);
+        lpBillAmtField.setEnabled(false);
+        lpBillAmtField.setDisabledTextColor(Color.darkGray);
+        lpBillAmtField.setBackground(lemonYellow);
+
+        bottomPanel.add(lpBillAmtLabel);
+        bottomPanel.add(lpBillAmtField);
+
+        pBillAmtLabel = new JLabel("P.Amt.");
+        pBillAmtLabel.setFont(labelFont);
+
+        pBillAmtField = new JTextField(3);
+        pBillAmtField.setText("1");
+        pBillAmtField.setFont(labelFont);
+        pBillAmtField.setEnabled(false);
+        pBillAmtField.setDisabledTextColor(Color.darkGray);
+        pBillAmtField.setBackground(lemonYellow);
+
+        bottomPanel.add(pBillAmtLabel);
+        bottomPanel.add(pBillAmtField);
+
+        billAmtLabel = new JLabel("Total :");
+        billAmtLabel.setFont(labelFont);
+
+        billAmtField = new JTextField(12);
+        billAmtField.setFont(labelFont);
+        billAmtField.setHorizontalAlignment(SwingConstants.RIGHT);
+        billAmtField.setText("656523.32");
+        billAmtField.setEnabled(false);
+        billAmtField.setDisabledTextColor(Color.darkGray);
+        billAmtField.setBackground(lemonYellow);
+
+        bottomPanel.add(billAmtLabel);
+        bottomPanel.add(billAmtField);
 
         buttonPanel.setPreferredSize(new Dimension(120, 600));
+        printLabel = new JLabel("Print :");
+        printLabel.setFont(labelFont);
 
-        sidePanel.add(headingPanel);
+        printOptions = new JComboBox<>();
+        printOptions.setFont(labelFont);
+        printOptions.setPreferredSize(new Dimension(90, 30));
+        printOptions.addFocusListener(this);
+        printOptions.addItem("Yes");
+        printOptions.addItem("No");
+
+        buttonPanel.add(printLabel);
+        buttonPanel.add(printOptions);
+
+        paidAmtLabel = new JLabel("Paid Amt.");
+        paidAmtLabel.setFont(labelFont);
+
+        paidAmtField = new JTextField(5);
+        paidAmtField.setBackground(lemonYellow);
+        paidAmtField.addKeyListener(this);
+        paidAmtField.addFocusListener(this);
+        paidAmtField.setFont(labelFont);
+
+        buttonPanel.add(paidAmtLabel);
+        buttonPanel.add(paidAmtField);
+
+        returnAmtLabel = new JLabel("Return Amt.");
+        returnAmtLabel.setFont(labelFont);
+
+        returnAmtField = new JTextField(5);
+        returnAmtField.setBackground(lemonYellow);
+        returnAmtField.setEnabled(false);
+        returnAmtField.setDisabledTextColor(Color.darkGray);
+        returnAmtField.setFont(labelFont);
+
+        buttonPanel.add(returnAmtLabel);
+        buttonPanel.add(returnAmtField);
+
         sidePanel.add(billInfoPanel);
         sidePanel.add(custInfoPanel);
         sidePanel.add(billFormPanel);
+        sidePanel.add(lastScannedItemPanel);
         sidePanel.add(scrollPane);
+        sidePanel.add(bottomPanel);
 
         mainPanel.add(sidePanel);
         mainPanel.add(buttonPanel);
@@ -260,28 +387,27 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         });
     }
 
+    public JButton getSaveBtn() {
+        return saveBtn;
+    }
+
+    public JComboBox<String> getPrintOption() {
+        return printOptions;
+    }
+
     private void designTable() {
 
         tableModel = new DefaultTableModel() {
             public boolean isCellEditable(int row, int col) {
-                return false;
+                return (col == 4 || col == 5 || col == 6 || col == 7);
             }
         };
 
-        tableModel.addColumn("Sr.No.");
-        tableModel.addColumn("item code");
-        tableModel.addColumn("barcode");
-        tableModel.addColumn("name");
-        tableModel.addColumn("Qty.");
-        tableModel.addColumn("MRP");
-        tableModel.addColumn("Sale Rate");
-        tableModel.addColumn("disc.%");
-        tableModel.addColumn("disc.amt.");
-        tableModel.addColumn("Amt.After Disc.");
-        tableModel.addColumn("Net Amt.");
-        tableModel.addColumn("Tax");
-        tableModel.addColumn("Tax Amt.");
-        tableModel.addColumn("Amt.");
+        String columnNames[] = new String[] { "Sr.No.", "item code", "barcode", "name", "Qty.", "MRP", "Sale Rate",
+                "disc.%", "disc.amt.", "Amt.", "Net Amt.", "Tax", "Tax Amt." };
+
+        for (String column : columnNames)
+            tableModel.addColumn(column);
 
         billTable = new JTable(tableModel);
         billTable.setFont(labelFont);
@@ -297,20 +423,12 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         header.setFont(labelFont);
 
         TableColumnModel columnModel = billTable.getColumnModel();
-        columnModel.getColumn(0).setPreferredWidth(70);
-        columnModel.getColumn(1).setPreferredWidth(140);
-        columnModel.getColumn(2).setPreferredWidth(170);
-        columnModel.getColumn(3).setPreferredWidth(220);
-        columnModel.getColumn(4).setPreferredWidth(70);
-        columnModel.getColumn(5).setPreferredWidth(100);
-        columnModel.getColumn(6).setPreferredWidth(100);
-        columnModel.getColumn(7).setPreferredWidth(70);
-        columnModel.getColumn(8).setPreferredWidth(120);
-        columnModel.getColumn(9).setPreferredWidth(120);
-        columnModel.getColumn(10).setPreferredWidth(120);
-        columnModel.getColumn(11).setPreferredWidth(70);
-        columnModel.getColumn(12).setPreferredWidth(120);
-        columnModel.getColumn(13).setPreferredWidth(150);
+        int[] values = new int[] { 70, 140, 170, 220, 70, 100, 100, 90, 120, 120, 120, 70, 120 };
+        for (int i = 0; i < values.length; i++) {
+            TableColumn column = columnModel.getColumn(i);
+            column.setPreferredWidth(values[i]);
+            column.setMinWidth(values[i]);
+        }
 
         scrollPane = new JScrollPane(billTable);
         scrollPane.setPreferredSize(new Dimension(1170, 300));
@@ -348,7 +466,9 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         } else {
 
             if (source.equals(saveBtn)) {
-                //
+                JOptionPane.showConfirmDialog(null, "Are you sure to save this information?",
+                        "Confirmation",
+                        JOptionPane.OK_CANCEL_OPTION);
             }
             if (source.equals(cancelBtn)) {
                 deleteBtn.setEnabled(true);
