@@ -5,11 +5,15 @@ import java.awt.event.*;
 import java.sql.*;
 import java.util.*;
 import javax.swing.*;
+import javax.swing.event.*;
+import javax.swing.table.*;
+import com.app.components.purchase.support.*;
 import com.app.config.*;
+import com.app.partials.event.*;
 import com.app.partials.interfaces.*;
 
 public abstract class AbstractButton extends JInternalFrame
-        implements AppConstants, ActionListener, FocusListener, KeyListener, Validation {
+        implements AppConstants, ActionListener, DocumentListener, FocusListener, KeyListener, Validation {
 
     protected JButton newBtn, cancelBtn, deleteBtn, exitBtn, editBtn, saveBtn, selectBtn;
     protected JPanel buttonPanel;
@@ -20,6 +24,9 @@ public abstract class AbstractButton extends JInternalFrame
     JLabel searchLabel;
     JPanel dataViewerHeadingPanel, selectBtnPanel;
     protected JTextField searchField;
+    JPanel view;
+    String whichView = "Product";
+    JTable mainTable;
 
     public AbstractButton(String title, JMenuItem currentMenu, HashMap<String, JInternalFrame> frameTracker,
             HashMap<JInternalFrame, String> frameKeyMap, final JDialog dialog) {
@@ -29,19 +36,29 @@ public abstract class AbstractButton extends JInternalFrame
         this.frameTracker = frameTracker;
         this.dataViewer = dialog;
 
+        configureDialog();
+
+        createButtons();
+    }
+
+    protected void setMainTable(JTable table) {
+        mainTable = table;
+    }
+
+    private void configureDialog() {
         double width = toolkit.getScreenSize().getWidth();
         double height = toolkit.getScreenSize().getHeight();
         dataViewer.setSize(new Dimension((int) (width / 1.5), 500));
         dataViewer.setBackground(Color.white);
         dataViewer.setLayout(new FlowLayout());
         dataViewer.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        dataViewer.setModal(true);
+        dataViewer.setResizable(false);
 
         int x = (int) (width - (width / 1.5)) / 2;
         int y = (int) (height - 500) / 2;
 
         dataViewer.setLocation(new Point(x, y));
-
-        createButtons();
     }
 
     private void createButtons() {
@@ -92,6 +109,13 @@ public abstract class AbstractButton extends JInternalFrame
         saveBtn.setFont(labelFont);
         saveBtn.addActionListener(this);
 
+        newBtn.addKeyListener(new KeyListenerButtonSwitch(exitBtn, saveBtn));
+        saveBtn.addKeyListener(new KeyListenerButtonSwitch(newBtn, editBtn));
+        editBtn.addKeyListener(new KeyListenerButtonSwitch(saveBtn, deleteBtn));
+        deleteBtn.addKeyListener(new KeyListenerButtonSwitch(editBtn, cancelBtn));
+        cancelBtn.addKeyListener(new KeyListenerButtonSwitch(deleteBtn, exitBtn));
+        exitBtn.addKeyListener(new KeyListenerButtonSwitch(cancelBtn, newBtn));
+
         buttonPanel.add(newBtn);
         buttonPanel.add(saveBtn);
         buttonPanel.add(editBtn);
@@ -123,7 +147,8 @@ public abstract class AbstractButton extends JInternalFrame
     }
 
     protected void createViewer(JPanel view) {
-        dataViewer.setResizable(false);
+        this.view = view;
+        configureDialog();
         Container container = dataViewer.getContentPane();
         container.removeAll();
 
@@ -141,6 +166,7 @@ public abstract class AbstractButton extends JInternalFrame
         searchField.setFont(labelFont);
         searchField.addFocusListener(this);
         searchField.addKeyListener(this);
+        searchField.getDocument().addDocumentListener(this);
         searchField.setBackground(lemonYellow);
 
         dataViewerHeadingPanel.add(searchField);
@@ -158,14 +184,14 @@ public abstract class AbstractButton extends JInternalFrame
         selectBtn.setForeground(Color.white);
         selectBtn.setBackground(new Color(253, 32, 25));
         selectBtn.addActionListener(this);
-
+        selectBtn.setActionCommand(view instanceof CustomerView ? "customer view" : "other views");
         selectBtnPanel.add(selectBtn);
 
         container.add(selectBtnPanel);
 
         container.revalidate();
         container.repaint();
-        dataViewer.setModal(true);
+
         dataViewer.setVisible(true);
     }
 
@@ -177,7 +203,118 @@ public abstract class AbstractButton extends JInternalFrame
 
     }
 
-    public void keyPressed(KeyEvent e) {
+    public void setView(String name) {
+        whichView = name;
+    }
 
+    private void performRowSwitch(String key) {
+        int row = table.getSelectedRow();
+        if (key.equals("Enter")) {
+            selectBtn.doClick();
+        } else if (key.equals("Up")) {
+            if (row > 0) {
+                table.setRowSelectionInterval(row - 1, row - 1);
+                table.scrollRectToVisible(table.getCellRect(row, 0, true));
+            }
+        } else if (key.equals("Down")) {
+            if ((row + 1) < table.getRowCount()) {
+                table.setRowSelectionInterval(row + 1, row + 1);
+                table.scrollRectToVisible(table.getCellRect(row, 0, true));
+            }
+        }
+    }
+
+    JTable table = null;
+
+    public void keyPressed(KeyEvent e) {
+        Object source = e.getSource();
+        String key = KeyEvent.getKeyText(e.getKeyCode());
+        if (source.equals(searchField) && view != null) {
+            if (!(view instanceof CustomerView)) {
+                ProductView v;
+                GroupView gv;
+                SubGroupView sgv;
+
+                if (whichView.equals("Product")) {
+                    v = (ProductView) view;
+                    table = v.getTable();
+                }
+
+                if (whichView.equals("Group")) {
+                    gv = (GroupView) view;
+                    table = gv.getTable();
+                }
+
+                if (whichView.equals("SubGroup")) {
+                    sgv = (SubGroupView) view;
+                    table = sgv.getTable();
+                }
+                performRowSwitch(key);
+            }
+
+            if (view instanceof CustomerView) {
+                CustomerView customerView = (CustomerView) view;
+                table = customerView.getTable();
+                performRowSwitch(key);
+            }
+        }
+    }
+
+    private void filter() {
+        if (!(view instanceof CustomerView)) {
+            ProductView v = null;
+            GroupView gv = null;
+            SubGroupView sgv = null;
+            String value = searchField.getText().toUpperCase().trim();
+            if (whichView.equals("Product")) {
+                v = (ProductView) view;
+                table = v.getTable();
+            }
+
+            if (whichView.equals("Group")) {
+                gv = (GroupView) view;
+                table = gv.getTable();
+            }
+
+            if (whichView.equals("SubGroup")) {
+                sgv = (SubGroupView) view;
+                table = sgv.getTable();
+            }
+            DefaultTableModel model = (DefaultTableModel) table.getModel();
+            model.setRowCount(0);
+
+            if (whichView.equals("Product")) {
+                v.setTableData(value);
+            }
+
+            if (whichView.equals("Group")) {
+                gv.setTableData(value);
+            }
+
+            if (whichView.equals("SubGroup")) {
+                sgv.setTableData(value);
+            }
+        } else {
+            CustomerView customerView = (CustomerView) view;
+            String searchValue = searchField.getText().toUpperCase().trim();
+            table = customerView.getTable();
+            DefaultTableModel model = customerView.getTableModel();
+            model.setRowCount(0);
+            customerView.setTableData(searchValue);
+        }
+        if (table.getRowCount() > 0)
+            table.setRowSelectionInterval(0, 0);
+    }
+
+    public void insertUpdate(DocumentEvent e) {
+        filter();
+    }
+
+    public void removeUpdate(DocumentEvent e) {
+        filter();
+    }
+
+    public void changedUpdate(DocumentEvent e) {
+        System.out.println("changed update docs list");
     }
 }

@@ -3,10 +3,9 @@ package com.app.components.purchase.support;
 import javax.swing.*;
 import javax.swing.table.*;
 import com.app.config.*;
-import com.app.partials.interfaces.AppConstants;
-import com.app.partials.interfaces.Validation;
-
+import com.app.partials.interfaces.*;
 import java.awt.*;
+import java.awt.event.*;
 import java.sql.*;
 
 public class GroupView extends JPanel implements AppConstants, Validation {
@@ -16,7 +15,7 @@ public class GroupView extends JPanel implements AppConstants, Validation {
   TableRowSorter<TableModel> sorter;
   final JScrollPane scrollPane;
 
-  public GroupView() {
+  public GroupView(JInternalFrame frame) {
     setLayout(new FlowLayout());
     setBackground(Color.white);
 
@@ -30,7 +29,7 @@ public class GroupView extends JPanel implements AppConstants, Validation {
     tableModel.addColumn("ID");
     tableModel.addColumn("Name");
 
-    setTableData();
+    setTableData(null);
 
     table = new JTable(tableModel);
     sorter = new TableRowSorter<TableModel>(tableModel);
@@ -39,6 +38,10 @@ public class GroupView extends JPanel implements AppConstants, Validation {
     table.setSelectionBackground(skyBlue);
     table.setSelectionForeground(Color.white);
     table.setRowHeight(30);
+    table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+    table.addKeyListener((KeyListener) frame);
+    if (table.getRowCount() > 0)
+      table.setRowSelectionInterval(0, 0);
 
     JTableHeader header = table.getTableHeader();
     header.setFont(labelFont);
@@ -53,10 +56,19 @@ public class GroupView extends JPanel implements AppConstants, Validation {
     setVisible(true);
   }
 
-  private void setTableData() {
+  public void setTableData(String searchValue) {
     try {
-      String query = "select * from groups";
-      ResultSet result = DBConnection.executeQuery(query);
+      String query = "";
+      ResultSet result;
+      if (searchValue == null || searchValue.isBlank()) {
+        query = "select * from groups";
+        result = DBConnection.executeQuery(query);
+      } else {
+        query = "select * from groups where g_name like ?";
+        PreparedStatement pst = DBConnection.con.prepareStatement(query);
+        pst.setString(1, '%' + searchValue.trim() + '%');
+        result = pst.executeQuery();
+      }
       int srNo = 1;
       while (result.next()) {
         tableModel.addRow(new Object[] {

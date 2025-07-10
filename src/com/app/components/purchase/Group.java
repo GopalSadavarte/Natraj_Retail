@@ -5,9 +5,6 @@ import java.awt.event.*;
 import java.sql.*;
 import java.util.*;
 import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableModel;
-
 import com.app.components.abstracts.AbstractButton;
 import com.app.components.purchase.support.GroupView;
 import com.app.config.*;
@@ -29,6 +26,7 @@ public final class Group extends AbstractButton {
         setBackground(Color.white);
         setSize(toolkit.getScreenSize());
         setLayout(flowLayoutCenter);
+        setView("Group");
 
         mainPanel = new JPanel(flowLayoutCenter);
         mainPanel.setBackground(Color.white);
@@ -241,7 +239,7 @@ public final class Group extends AbstractButton {
         field.setBackground(lemonYellow);
     }
 
-    public void keyPressed(KeyEvent e) {
+    public void keyReleased(KeyEvent e) {
         String key = KeyEvent.getKeyText(e.getKeyCode());
         Object source = e.getSource();
         if (source.equals(groupIdField)) {
@@ -253,6 +251,7 @@ public final class Group extends AbstractButton {
                     pst.setInt(1, id);
                     ResultSet res = pst.executeQuery();
                     if (res.next()) {
+                        groupIdField.setText(res.getString("id"));
                         groupNameField.setText(res.getString("g_name"));
                         groupNameField.requestFocus();
                         groupIdForUpdateOrDelete = id;
@@ -266,28 +265,9 @@ public final class Group extends AbstractButton {
             }
 
             if (key.equals("F1")) {
-                view = new GroupView();
+                view = new GroupView(this);
                 view.getScrollPane().setPreferredSize(new Dimension(800, 350));
                 createViewer(view);
-            }
-        }
-    }
-
-    public void keyReleased(KeyEvent e) {
-        Object source = e.getSource();
-        String key = KeyEvent.getKeyText(e.getKeyCode());
-        if (source.equals(searchField)) {
-            if (key.equals("Enter")) {
-                selectBtn.doClick();
-            } else {
-                DefaultTableModel model = view.getTableModel();
-                String value = searchField.getText().toUpperCase().trim();
-                for (int i = 0; i < model.getRowCount(); i++) {
-                    String rowVal = model.getValueAt(i, 2).toString();
-                    view.getTable().setRowHeight(i, rowVal.contains(value) ? view.getTable().getRowHeight() : 1);
-                    if (rowVal.contains(value))
-                        view.getTable().setRowSelectionInterval(i, i);
-                }
             }
         }
     }

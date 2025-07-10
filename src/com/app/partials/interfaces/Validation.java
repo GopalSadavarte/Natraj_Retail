@@ -11,4 +11,14 @@ public interface Validation extends Regex {
         }
         return true;
     }
+
+    default boolean isBarcodeValid(String barcode){
+        if (barcode.trim().isBlank()) {
+            return false;
+        }
+        if (!barcode.trim().matches(INTEGER_VAL_PATTERN)) {
+            return false;
+        }
+        return true;
+    }
 }

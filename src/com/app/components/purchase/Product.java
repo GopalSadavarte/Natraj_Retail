@@ -38,6 +38,7 @@ public final class Product extends AbstractButton {
         setBackground(Color.white);
         setSize(Toolkit.getDefaultToolkit().getScreenSize());
         setLayout(flowLayoutCenter);
+        setView("Product");
 
         mainPanel = new JPanel(flowLayoutCenter);
         mainPanel.setBorder(BorderFactory.createLineBorder(borderColor));
@@ -350,26 +351,30 @@ public final class Product extends AbstractButton {
         ((JComponent) e.getSource()).setBackground(lemonYellow);
     }
 
-    public void keyPressed(KeyEvent e) {
+    public void keyTyped(KeyEvent e) {
+        String key = KeyEvent.getKeyText(e.getKeyCode());
+        Object source = e.getSource();
+        if (source.equals(itemCodeField)) {
+            if (key.equals("Enter")) {
+                try {
+                    int id = Integer.parseInt(itemCodeField.getText().trim());
+                    showProductDetails(id);
+                } catch (Exception exc) {
+                    JOptionPane.showMessageDialog(null, "please! put a valid id..!", "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        }
+    }
+
+    public void keyReleased(KeyEvent e) {
         String key = KeyEvent.getKeyText(e.getKeyCode());
         Object source = e.getSource();
         if (source.equals(itemCodeField)) {
             if (key.equals("F1")) {
-                view = new ProductView();
+                view = new ProductView(this);
                 view.getScrollPane().setPreferredSize(new Dimension(800, 350));
                 createViewer(view);
-            }
-
-            if (key.equals("Enter")) {
-                int id;
-                try {
-                    id = Integer.parseInt(itemCodeField.getText().trim());
-                } catch (Exception exc) {
-                    JOptionPane.showMessageDialog(null, "please! put a valid id..!", "Error",
-                            JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-                showProductDetails(id);
             }
         }
     }
@@ -382,6 +387,7 @@ public final class Product extends AbstractButton {
             ResultSet result = pst.executeQuery();
             if (result.next()) {
                 String itemBarcode = result.getString("barcode_no");
+                itemCodeField.setText(result.getString("p_id"));
                 itemBarcodeField.setText(itemBarcode);
                 itemNameField.setText(result.getString("product_name"));
                 itemGroups.setSelectedItem(result.getString("g_name"));
@@ -416,26 +422,6 @@ public final class Product extends AbstractButton {
         } catch (Exception exc) {
             System.out.println(exc.getMessage() + " at Product.java 397");
             JOptionPane.showMessageDialog(null, exc.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    public void keyReleased(KeyEvent e) {
-        Object source = e.getSource();
-        String key = KeyEvent.getKeyText(e.getKeyCode());
-        if (source.equals(searchField)) {
-            if (key.equals("Enter")) {
-                selectBtn.doClick();
-            } else {
-                String value = searchField.getText().toUpperCase().trim();
-                JTable table = view.getTable();
-                int rows = table.getRowCount();
-                for (int i = 0; i < rows; i++) {
-                    String rowVal = table.getValueAt(i, 3).toString();
-                    table.setRowHeight(i, rowVal.contains(value) ? table.getRowHeight() : 1);
-                    if (rowVal.contains(value))
-                        table.setRowSelectionInterval(i, i);
-                }
-            }
         }
     }
 
@@ -547,20 +533,18 @@ public final class Product extends AbstractButton {
 
                         int affectedRows = pst.executeUpdate();
                         if (affectedRows > 0) {
-                            if (stock != 0) {
-                                query = "insert into inventories(product_id,current_quantity,sale_rate,product_mrp)values(?,?,?,?)";
-                                pst = DBConnection.con.prepareStatement(query);
-                                ResultSet result = DBConnection
-                                        .executeQuery("select id from products order by id desc limit 1");
-                                if (result.next()) {
-                                    int id = result.getInt("id");
-                                    pst.setInt(1, id);
-                                    pst.setInt(2, stock);
-                                    pst.setDouble(3, saleRate);
-                                    pst.setDouble(4, mrp);
+                            query = "insert into inventories(product_id,current_quantity,sale_rate,product_mrp)values(?,?,?,?)";
+                            pst = DBConnection.con.prepareStatement(query);
+                            ResultSet result = DBConnection
+                                    .executeQuery("select id from products order by id desc limit 1");
+                            if (result.next()) {
+                                int id = result.getInt("id");
+                                pst.setInt(1, id);
+                                pst.setInt(2, stock);
+                                pst.setDouble(3, saleRate);
+                                pst.setDouble(4, mrp);
 
-                                    affectedRows = pst.executeUpdate();
-                                }
+                                affectedRows = pst.executeUpdate();
                             }
                             reCreate();
                         } else {

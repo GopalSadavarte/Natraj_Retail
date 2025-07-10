@@ -3,10 +3,10 @@ package com.app.components.purchase.support;
 import javax.swing.*;
 import javax.swing.table.*;
 import com.app.config.*;
-import com.app.partials.interfaces.AppConstants;
-import com.app.partials.interfaces.Validation;
+import com.app.partials.interfaces.*;
 
 import java.awt.*;
+import java.awt.event.*;
 import java.sql.*;
 
 public class ProductView extends JPanel implements AppConstants, Validation {
@@ -16,7 +16,8 @@ public class ProductView extends JPanel implements AppConstants, Validation {
   TableRowSorter<TableModel> sorter;
   final JScrollPane scrollPane;
 
-  public ProductView() {
+  public ProductView(KeyListener listener) {
+
     setLayout(new FlowLayout());
     setBackground(Color.white);
 
@@ -32,9 +33,9 @@ public class ProductView extends JPanel implements AppConstants, Validation {
     tableModel.addColumn("Name");
     tableModel.addColumn("Sale Rate");
     tableModel.addColumn("MRP");
-    tableModel.addColumn("Discount");
+    tableModel.addColumn("Disc.%");
 
-    setTableData();
+    setTableData(null);
 
     table = new JTable(tableModel);
     sorter = new TableRowSorter<TableModel>(tableModel);
@@ -42,7 +43,21 @@ public class ProductView extends JPanel implements AppConstants, Validation {
     table.setSelectionBackground(skyBlue);
     table.setSelectionForeground(Color.white);
     table.setFont(labelFont);
+    table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+    table.addKeyListener(listener);
     table.setRowHeight(30);
+    table.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0),
+        "none");
+    if (table.getRowCount() > 0)
+      table.setRowSelectionInterval(0, 0);
+
+    TableColumnModel columnModel = table.getColumnModel();
+    int[] values = new int[] { 70, 70, 140, 200, 90, 90, 70 };
+    for (int i = 0; i < values.length; i++) {
+      TableColumn column = columnModel.getColumn(i);
+      column.setPreferredWidth(values[i]);
+      column.setMinWidth(values[i]);
+    }
 
     JTableHeader header = table.getTableHeader();
     header.setFont(labelFont);
@@ -57,10 +72,20 @@ public class ProductView extends JPanel implements AppConstants, Validation {
     setVisible(true);
   }
 
-  private void setTableData() {
+  public void setTableData(String searchValue) {
     try {
-      String query = "select * from products";
-      ResultSet result = DBConnection.executeQuery(query);
+      String query = "";
+      ResultSet result;
+      if (searchValue == null || searchValue.isBlank()) {
+        query = "select * from products";
+        result = DBConnection.executeQuery(query);
+      } else {
+        query = "select * from products where product_name like ?";
+        PreparedStatement pst = DBConnection.con.prepareStatement(query);
+        pst.setString(1, '%' + searchValue.trim() + '%');
+        result = pst.executeQuery();
+      }
+
       int srNo = 1;
       while (result.next()) {
         tableModel.addRow(new Object[] {

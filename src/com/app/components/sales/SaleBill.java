@@ -1,32 +1,301 @@
 package com.app.components.sales;
 
 import javax.swing.*;
+import javax.swing.event.*;
 import javax.swing.table.*;
 import com.app.components.abstracts.AbstractButton;
+import com.app.components.purchase.support.*;
+import com.app.config.*;
+import com.app.partials.event.*;
 import com.toedter.calendar.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.beans.*;
+import java.sql.*;
 import java.util.*;
+import java.util.Date;
 
-public final class SaleBill extends AbstractButton implements PropertyChangeListener {
+public final class SaleBill extends AbstractButton implements PropertyChangeListener, CellEditorListener {
 
     JLabel lastScannedItemLabel, dateLabel, billNoLabel, counterNoLabel, custNameLabel, custMobileLabel, pIdLabel,
             pBarcodeLabel, printLabel,
             pQtyLabel, pRateLabel, pMRPLabel, billAmtLabel, returnAmtLabel, paidAmtLabel, pBillAmtLabel,
-            lpBillAmtLabel, pBillNoLabel, lpBillNoLabel, paymentTypeLabel, totalQtyLabel, pDiscLabel;
-    JPanel mainPanel, sidePanel, lastScannedItemPanel, billInfoPanel, custInfoPanel, billFormPanel, bottomPanel;
+            lpBillAmtLabel, pBillNoLabel, creditNoteIdLabel, creditNoteAmtLabel, lpBillNoLabel, paymentTypeLabel,
+            totalQtyLabel, pDiscLabel, pBillQtyLabel, lpBillQtyLabel;
+    JPanel mainPanel, sidePanel, subBottomPanel, lastScannedItemPanel, billInfoPanel, custInfoPanel, billFormPanel,
+            bottomPanel;
     JTextField billNoField, counterNoField, custNameField, mobileField, pBarcodeField, pIdField, pNameField, pQtyField,
-            pRateField, lastScannedItemField,
+            pRateField, lastScannedItemField, creditNoteIdField, creditNoteAmtField,
             pMRPField, billAmtField, returnAmtField, paidAmtField, pBillNoField, lpBillNoField, pBillAmtField,
-            lpBillAmtField, totalQtyField, pDiscField;
+            lpBillAmtField, totalQtyField, pDiscField, pBillQtyField, lpBillQtyField;
     JDateChooser dateChooser;
     JComboBox<String> paymentTypes, printOptions;
-    JTable billTable;
+    JTable billTable, stockTable;
     DefaultTableModel tableModel;
     TableRowSorter<TableModel> sorter;
     JScrollPane scrollPane;
-    final Dimension innerPanelSize = new Dimension(1330 - 160, 45);
+    ProductView productView;
+    JButton stockSelectBtn;
+    int rowId = 1;
+    final Integer UPDATE_ACTION = -1, SAVE_ACTION = 1, DELETE_ACTION = 0;
+    Integer action = SAVE_ACTION;
+
+    private void insertIntoBillTable() {
+        try {
+            String b = pBarcodeField.getText().trim();
+            String id = pIdField.getText().trim();
+            String name = pNameField.getText().trim();
+            String qty = pQtyField.getText().trim();
+            String rate = pRateField.getText().trim();
+            String mrp = pMRPField.getText().trim();
+
+            boolean bRes = isBarcodeValid(b);
+            boolean idRes = isBarcodeValid(id);
+            double rateVal = Double.parseDouble(rate);
+            int qtyVal = Integer.parseInt(qty);
+
+            if (!bRes || !idRes) {
+                JOptionPane.showMessageDialog(this, "Barcode OR Item code is invalid!!", "Error",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            double mrpVal = rateVal;
+            if (!mrp.isBlank()) {
+                mrpVal = Double.parseDouble(mrp);
+            }
+
+            if (mrpVal < rateVal) {
+                JOptionPane.showMessageDialog(this, "Rate not should be greater then MRP..!", "Error",
+                        JOptionPane.ERROR_MESSAGE);
+                pMRPField.requestFocus();
+                return;
+            }
+
+            double dAmt = (rateVal * discountVal) / 100;
+
+            int row = checkRecordExist(id, rateVal, mrpVal);
+            if (row == -1) {
+                tableModel.insertRow(0, new Object[] {
+                        cnt++, id, b, name, qtyVal,
+                        rateVal,
+                        mrpVal,
+                        discountVal,
+                        dAmt,
+                        rateVal - dAmt,
+                        (rateVal - dAmt) * qtyVal,
+                        taxVal, 0, stockId == null ? "-" : stockId
+                });
+            } else {
+                tableModel.setValueAt(Integer.parseInt(tableModel.getValueAt(row, 4).toString()) + qtyVal,
+                        row,
+                        4);
+            }
+
+            calculate();
+            stockId = null;
+            pBarcodeField.setText("");
+            pIdField.setText("");
+            pNameField.setText("");
+            pQtyField.setText("1");
+            pRateField.setText("");
+            pMRPField.setText("");
+            pBarcodeField.requestFocus();
+            discountVal = 0;
+
+        } catch (NullPointerException exc) {
+            System.out.println(exc.getMessage() + " at SaleBill.insertIntoBillTable()");
+            JOptionPane.showMessageDialog(this, "The values are not should be empty..!", "Error",
+                    JOptionPane.ERROR_MESSAGE);
+        } catch (NumberFormatException exc) {
+            System.out.println(exc.getMessage() + " at SaleBill.insertIntoBillTable()");
+            JOptionPane.showMessageDialog(this, "Please, enter valid numeric values..!", "Error",
+                    JOptionPane.ERROR_MESSAGE);
+            if (pBarcodeField.getText().isBlank())
+                pBarcodeField.requestFocus();
+            else
+                pQtyField.requestFocus();
+        } catch (Exception exc) {
+            JOptionPane.showMessageDialog(this, "Invalid details..!", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void showProductDetails(Object source) {
+        try {
+            isForShowProductDetails = source.equals(pIdField);
+            if (source.equals(pBarcodeField) && pBarcodeField.getText().isBlank()) {
+                pIdField.requestFocus();
+                return;
+            }
+            if (source.equals(pIdField) && pIdField.getText().isBlank()) {
+                pQtyField.requestFocus();
+                return;
+            }
+
+            int barcode = Integer.parseInt(
+                    isForShowProductDetails ? pIdField.getText().trim()
+                            : pBarcodeField.getText().trim());
+
+            String query = isForShowProductDetails ? "select * from products where p_id = ? limit 1"
+                    : "select * from products where barcode_no = ? limit 1";
+
+            PreparedStatement pst = DBConnection.con.prepareStatement(query);
+            if (isForShowProductDetails) {
+                pst.setInt(1, barcode);
+            } else {
+                pst.setString(1, "00" + barcode);
+            }
+
+            ResultSet result = pst.executeQuery();
+            if (result.next()) {
+                String rate = result.getString("sale_rate");
+                String mrp = result.getString("product_mrp");
+                String pName = result.getString("product_name").trim();
+                pBarcodeField.setText(result.getString("barcode_no"));
+                pIdField.setText(result.getString("p_id"));
+                pNameField.setText(pName);
+                pQtyField.setText("1");
+                pRateField.setText(rate);
+                pMRPField.setText(mrp);
+                discountVal = result.getDouble("discount");
+
+                int availableStock = getStock(Integer.parseInt(pIdField.getText()));
+                lastScannedItemField.setText(
+                        pBarcodeField.getText().trim() + " Item Name:" + pName + " Available Qty.:" + availableStock);
+                showStockList(pIdField.getText());
+            } else {
+                JOptionPane.showMessageDialog(this, "In-correct barcode or item code...!", "Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+
+        } catch (SQLException exc) {
+            // exc.printStackTrace();
+            System.out.println(exc.getMessage() + " at SaleBill.java 106");
+            JOptionPane.showMessageDialog(this, exc.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        } catch (NumberFormatException exc) {
+            // exc.printStackTrace();
+            System.out.println(exc.getMessage() + " at SaleBill.java 106");
+            JOptionPane.showMessageDialog(this, exc.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        } catch (Exception exc) {
+            System.out.println(exc.getLocalizedMessage() + " at SaleBill.showProductDetails()");
+        }
+    }
+
+    private int getStock(int pId) throws Exception {
+        PreparedStatement pst = DBConnection.con.prepareStatement(
+                "select sum(current_quantity) as qty from inventories where product_id = ?");
+        pst.setInt(1, pId);
+        ResultSet result = pst.executeQuery();
+        if (result.next()) {
+            return result.getInt("qty");
+        }
+        return 0;
+    }
+
+    private int checkRecordExist(String pId, double rate, double mrp) {
+        int rows = tableModel.getRowCount();
+        int row = -1;
+        if (rows > 0) {
+            for (int index = 0; index < rows; index++) {
+                String rowId = tableModel.getValueAt(index, 1).toString();
+                String rowRate = tableModel.getValueAt(index, 5).toString();
+                String rowMrp = tableModel.getValueAt(index, 6).toString();
+
+                double r = Double.parseDouble(rowRate);
+                double m = Double.parseDouble(rowMrp);
+
+                if (pId.equals(rowId) && rate == r && mrp == m) {
+                    row = index;
+                    break;
+                }
+            }
+        }
+        return row;
+    }
+
+    final KeyListener keyListenerToAddTableRecords = new KeyAdapter() {
+        public void keyPressed(KeyEvent e) {
+            String key = KeyEvent.getKeyText(e.getKeyCode());
+            Object source = e.getSource();
+            if (source.equals(pMRPField) && key.equals("Enter")) {
+                insertIntoBillTable();
+            }
+
+            if ((source.equals(pBarcodeField) || source.equals(pIdField)) && key.equals("Enter")) {
+                showProductDetails(source);
+            }
+        }
+    };
+
+    private void showStockList(String pId) {
+
+        StockView view = new StockView(pId, this);
+        stockSelectBtn = view.getSelectBtn();
+        stockTable = view.getTable();
+        if (stockTable.getRowCount() > 1) {
+            Container container = dataViewer.getContentPane();
+            container.removeAll();
+            view.setPreferredSize(new Dimension(530, 390));
+
+            view.getScrollPane().setPreferredSize(new Dimension(520, 320));
+            container.add(view);
+
+            container.revalidate();
+            container.repaint();
+
+            dataViewer.setSize(new Dimension(560, 420));
+            double w = toolkit.getScreenSize().getWidth();
+            double h = toolkit.getScreenSize().getHeight();
+            int x = ((int) (w - dataViewer.getWidth()) / 2);
+            int y = ((int) (h - dataViewer.getHeight()) / 2);
+            dataViewer.setLocation(new Point(x, y));
+            stockTable.requestFocus();
+            dataViewer.setVisible(true);
+        } else {
+            dataViewer.setVisible(false);
+            stockSelectBtn.doClick();
+        }
+    }
+
+    private void calculate() {
+        int rows = tableModel.getRowCount();
+
+        double total = 0;
+        double tDisc = 0;
+        long tQty = 0;
+
+        for (int i = 0; i < rows; i++) {
+            try {
+                long qty = Long.parseLong(tableModel.getValueAt(i, 4).toString().trim());
+                double rate = Double.parseDouble(tableModel.getValueAt(i, 5).toString().trim());
+                String d = tableModel.getValueAt(i, 7).toString().trim();
+                if (d.contains("%"))
+                    d = d.replace('%', '\s').trim();
+                double discount = Double.parseDouble(d);
+
+                double dAmt = (rate * discount) / 100;
+                double amt = rate - dAmt;
+                double nAmt = amt * qty;
+
+                total += nAmt;
+                tDisc += dAmt * qty;
+                tQty += qty;
+
+                tableModel.setValueAt(dAmt, i, 8);
+                tableModel.setValueAt(amt, i, 9);
+                tableModel.setValueAt(nAmt, i, 10);
+            } catch (Exception e) {
+                System.out.println(e.getMessage() + " at SaleBill.calculate()");
+                JOptionPane.showMessageDialog(this, e.getLocalizedMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+
+        billAmtField.setText(String.format("%.2f", total - Double.parseDouble(creditNoteAmtField.getText())));
+        totalQtyField.setText("" + tQty);
+        pDiscField.setText(String.format("%.2f", tDisc));
+    }
+
+    double discountVal = 0, taxVal = 0;
+    final Dimension innerPanelSize = new Dimension(1330 - 160, 40);
 
     public SaleBill(JMenuItem currentMenu, HashMap<String, JInternalFrame> frameTracker,
             HashMap<JInternalFrame, String> frameKeyMap, final JDialog dialog) {
@@ -47,10 +316,118 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         sidePanel.setPreferredSize(new Dimension(1330 - 150, 595));
         sidePanel.setBorder(border);
 
+        allocateToTopPanel();
+
+        designTable();
+
+        allocateToBottomPanel();
+
+        buttonPanel.setPreferredSize(new Dimension(120, 600));
+        printLabel = new JLabel("Print :");
+        printLabel.setFont(labelFont);
+
+        printOptions = new JComboBox<>();
+        printOptions.setFont(labelFont);
+        printOptions.setPreferredSize(new Dimension(90, 30));
+        printOptions.addItem("Yes");
+        printOptions.addItem("No");
+
+        buttonPanel.add(printLabel);
+        buttonPanel.add(printOptions);
+
+        creditNoteIdLabel = new JLabel("Crd.Note ID");
+        creditNoteIdLabel.setFont(labelFont);
+
+        creditNoteIdField = new JTextField(4);
+        creditNoteIdField.setFont(labelFont);
+        creditNoteIdField.addFocusListener(this);
+        creditNoteIdField.addKeyListener(this);
+        creditNoteIdField.setText("0");
+
+        buttonPanel.add(creditNoteIdLabel);
+        buttonPanel.add(creditNoteIdField);
+
+        creditNoteAmtLabel = new JLabel("Crd.Amt.");
+        creditNoteAmtLabel.setFont(labelFont);
+
+        creditNoteAmtField = new JTextField(4);
+        creditNoteAmtField.setFont(labelFont);
+        creditNoteAmtField.setEnabled(false);
+        creditNoteAmtField.setDisabledTextColor(Color.darkGray);
+        creditNoteAmtField.setText("0");
+
+        buttonPanel.add(creditNoteAmtLabel);
+        buttonPanel.add(creditNoteAmtField);
+
+        sidePanel.add(billInfoPanel);
+        sidePanel.add(custInfoPanel);
+        sidePanel.add(billFormPanel);
+        sidePanel.add(lastScannedItemPanel);
+        sidePanel.add(scrollPane);
+        sidePanel.add(bottomPanel);
+
+        mainPanel.add(sidePanel);
+        mainPanel.add(buttonPanel);
+
+        add(mainPanel);
+
+        pQtyField.addKeyListener(new CustomKeyListener(pRateField));
+        pRateField.addKeyListener(new CustomKeyListener(pMRPField));
+
+        String billNo = getLastId();
+        billNoField.setText(billNo);
+        setBottomFields();
+        setVisible(true);
+        SwingUtilities.invokeLater(() -> {
+            pBarcodeField.requestFocus();
+        });
+    }
+
+    private void setBottomFields() {
+        try {
+            String query = "select total_amount,day_wise_bill_no,sum(quantity) as qty from bills,sales where date(bills.created_at) = ? and bills.id = sales.bill_id group by bill_id,total_amount,day_wise_bill_no order by bill_id desc limit 2";
+            PreparedStatement pst = DBConnection.con.prepareStatement(query);
+            pst.setDate(1, new java.sql.Date(new Date().getTime()));
+            ResultSet result = pst.executeQuery();
+            while (result.next()) {
+                String qty = result.getString("qty");
+                String billNo = result.getString("day_wise_bill_no");
+                String amount = result.getString("total_amount");
+                if (result.getRow() == 1) {
+                    pBillNoField.setText(billNo);
+                    pBillAmtField.setText(amount);
+                    pBillQtyField.setText(qty);
+                } else {
+                    lpBillNoField.setText(billNo);
+                    lpBillAmtField.setText(amount);
+                    lpBillQtyField.setText(qty);
+                }
+            }
+            result.close();
+            pst.close();
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private String getLastId() {
+        String id = "1";
+        try {
+            String query = "select day_wise_bill_no from bills where date(created_at) = ? order by day_wise_bill_no desc limit 1";
+            PreparedStatement pst = DBConnection.con.prepareStatement(query);
+            pst.setDate(1, new java.sql.Date(new Date().getTime()));
+            ResultSet result = pst.executeQuery();
+            id = result.next() ? "" + (result.getInt("day_wise_bill_no") + 1) : "1";
+        } catch (Exception e) {
+            System.out.println(e.getMessage() + " at SaleBill.getLastId()");
+        }
+        return id;
+    }
+
+    private void allocateToTopPanel() {
         lastScannedItemPanel = new JPanel(flowLayoutLeft);
         lastScannedItemPanel.setBackground(Color.white);
         lastScannedItemPanel.setPreferredSize(innerPanelSize);
-        lastScannedItemPanel.setBorder(border);
 
         lastScannedItemLabel = new JLabel("Last Scanned Item :");
         lastScannedItemLabel.setForeground(Color.darkGray);
@@ -59,7 +436,7 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         lastScannedItemField = new JTextField(50);
         lastScannedItemField.setFont(labelFont);
         lastScannedItemField.setEnabled(false);
-        lastScannedItemField.setText("product");
+        lastScannedItemField.setText("Item name: NA \tStock : 0");
         lastScannedItemField.setBackground(lemonYellow);
 
         lastScannedItemPanel.add(lastScannedItemLabel);
@@ -68,7 +445,6 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         billInfoPanel = new JPanel(flowLayoutLeft);
         billInfoPanel.setBackground(Color.white);
         billInfoPanel.setPreferredSize(innerPanelSize);
-        billInfoPanel.setBorder(border);
 
         dateLabel = new JLabel("Date:");
         dateLabel.setFont(labelFont);
@@ -131,7 +507,6 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         custInfoPanel = new JPanel(flowLayoutLeft);
         custInfoPanel.setBackground(Color.white);
         custInfoPanel.setPreferredSize(innerPanelSize);
-        custInfoPanel.setBorder(border);
 
         custNameLabel = new JLabel("Customer Name:");
         custNameLabel.setFont(labelFont);
@@ -141,6 +516,7 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         custNameField.setForeground(Color.darkGray);
         custNameField.setBackground(lemonYellow);
         custNameField.addFocusListener(this);
+        custNameField.addKeyListener(this);
 
         custInfoPanel.add(custNameLabel);
         custInfoPanel.add(custNameField);
@@ -159,7 +535,6 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         billFormPanel = new JPanel(flowLayoutLeft);
         billFormPanel.setPreferredSize(innerPanelSize);
         billFormPanel.setBackground(Color.white);
-        billFormPanel.setBorder(border);
 
         pBarcodeLabel = new JLabel("Barcode :");
         pBarcodeLabel.setFont(labelFont);
@@ -167,11 +542,11 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         pBarcodeField = new JTextField(7);
         pBarcodeField.addFocusListener(this);
         pBarcodeField.addActionListener(this);
+        pBarcodeField.addKeyListener(keyListenerToAddTableRecords);
         pBarcodeField.addKeyListener(this);
         pBarcodeField.setBackground(lemonYellow);
         pBarcodeField.setFont(labelFont);
         pBarcodeField.setFocusable(true);
-        pBarcodeField.requestFocus();
 
         billFormPanel.add(pBarcodeLabel);
         billFormPanel.add(pBarcodeField);
@@ -183,6 +558,7 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         pIdField.setBackground(lemonYellow);
         pIdField.addFocusListener(this);
         pIdField.addKeyListener(this);
+        pIdField.addKeyListener(keyListenerToAddTableRecords);
         pIdField.setFont(labelFont);
 
         billFormPanel.add(pIdLabel);
@@ -227,52 +603,26 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         pMRPField = new JTextField(5);
         pMRPField.setBackground(lemonYellow);
         pMRPField.setFont(labelFont);
+        pMRPField.addKeyListener(keyListenerToAddTableRecords);
         pMRPField.addKeyListener(this);
         pMRPField.addFocusListener(this);
 
         billFormPanel.add(pMRPLabel);
         billFormPanel.add(pMRPField);
+    }
 
-        designTable();
-
-        bottomPanel = new JPanel(flowLayoutLeft);
+    private void allocateToBottomPanel() {
+        bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 5));
         bottomPanel.setBackground(Color.white);
-        bottomPanel.setBorder(border);
-        bottomPanel.setPreferredSize(innerPanelSize);
-
-        pDiscLabel = new JLabel("Disc.Amt.:");
-        pDiscLabel.setFont(labelFont);
-
-        pDiscField = new JTextField(5);
-        pDiscField.setFont(labelFont);
-        pDiscField.setEnabled(false);
-        pDiscField.setDisabledTextColor(Color.darkGray);
-        pDiscField.setBackground(lemonYellow);
-        pDiscField.setText("343.43");
-
-        bottomPanel.add(pDiscLabel);
-        bottomPanel.add(pDiscField);
-
-        totalQtyLabel = new JLabel("T.Qty.:");
-        totalQtyLabel.setFont(labelFont);
-
-        totalQtyField = new JTextField(5);
-        totalQtyField.setEnabled(false);
-        totalQtyField.setDisabledTextColor(Color.darkGray);
-        totalQtyField.setText("12");
-        totalQtyField.setBackground(lemonYellow);
-        totalQtyField.setFont(labelFont);
-
-        bottomPanel.add(totalQtyLabel);
-        bottomPanel.add(totalQtyField);
+        bottomPanel.setPreferredSize(new Dimension(1330 - 160, 80));
 
         lpBillNoLabel = new JLabel("L.P.No.");
         lpBillNoLabel.setFont(labelFont);
 
-        lpBillNoField = new JTextField(2);
-        lpBillNoField.setText("1");
+        lpBillNoField = new JTextField(4);
+        lpBillNoField.setText("0");
         lpBillNoField.setEnabled(false);
-        lpBillNoField.setFont(labelFont);
+        lpBillNoField.setFont(smallFont);
         lpBillNoField.setDisabledTextColor(Color.darkGray);
         lpBillNoField.setBackground(lemonYellow);
 
@@ -282,9 +632,9 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         pBillNoLabel = new JLabel("P.No.");
         pBillNoLabel.setFont(labelFont);
 
-        pBillNoField = new JTextField(2);
-        pBillNoField.setText("1");
-        pBillNoField.setFont(labelFont);
+        pBillNoField = new JTextField(4);
+        pBillNoField.setText("0");
+        pBillNoField.setFont(smallFont);
         pBillNoField.setEnabled(false);
         pBillNoField.setDisabledTextColor(Color.darkGray);
         pBillNoField.setBackground(lemonYellow);
@@ -292,12 +642,38 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         bottomPanel.add(pBillNoLabel);
         bottomPanel.add(pBillNoField);
 
+        lpBillQtyLabel = new JLabel("L.P.Qty.");
+        lpBillQtyLabel.setFont(labelFont);
+
+        lpBillQtyField = new JTextField(4);
+        lpBillQtyField.setText("0");
+        lpBillQtyField.setEnabled(false);
+        lpBillQtyField.setFont(smallFont);
+        lpBillQtyField.setDisabledTextColor(Color.darkGray);
+        lpBillQtyField.setBackground(lemonYellow);
+
+        bottomPanel.add(lpBillQtyLabel);
+        bottomPanel.add(lpBillQtyField);
+
+        pBillQtyLabel = new JLabel("P.Qty.");
+        pBillQtyLabel.setFont(labelFont);
+
+        pBillQtyField = new JTextField(4);
+        pBillQtyField.setText("0");
+        pBillQtyField.setFont(smallFont);
+        pBillQtyField.setEnabled(false);
+        pBillQtyField.setDisabledTextColor(Color.darkGray);
+        pBillQtyField.setBackground(lemonYellow);
+
+        bottomPanel.add(pBillQtyLabel);
+        bottomPanel.add(pBillQtyField);
+
         lpBillAmtLabel = new JLabel("L.P.Amt.");
         lpBillAmtLabel.setFont(labelFont);
 
-        lpBillAmtField = new JTextField(3);
-        lpBillAmtField.setText("1");
-        lpBillAmtField.setFont(labelFont);
+        lpBillAmtField = new JTextField(7);
+        lpBillAmtField.setText("0.00");
+        lpBillAmtField.setFont(smallFont);
         lpBillAmtField.setEnabled(false);
         lpBillAmtField.setDisabledTextColor(Color.darkGray);
         lpBillAmtField.setBackground(lemonYellow);
@@ -308,9 +684,9 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         pBillAmtLabel = new JLabel("P.Amt.");
         pBillAmtLabel.setFont(labelFont);
 
-        pBillAmtField = new JTextField(3);
-        pBillAmtField.setText("1");
-        pBillAmtField.setFont(labelFont);
+        pBillAmtField = new JTextField(7);
+        pBillAmtField.setText("0.00");
+        pBillAmtField.setFont(smallFont);
         pBillAmtField.setEnabled(false);
         pBillAmtField.setDisabledTextColor(Color.darkGray);
         pBillAmtField.setBackground(lemonYellow);
@@ -321,10 +697,10 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         billAmtLabel = new JLabel("Total :");
         billAmtLabel.setFont(labelFont);
 
-        billAmtField = new JTextField(12);
-        billAmtField.setFont(labelFont);
+        billAmtField = new JTextField(10);
+        billAmtField.setFont(new Font("Cambria", 25, 25));
         billAmtField.setHorizontalAlignment(SwingConstants.RIGHT);
-        billAmtField.setText("656523.32");
+        billAmtField.setText("0.00");
         billAmtField.setEnabled(false);
         billAmtField.setDisabledTextColor(Color.darkGray);
         billAmtField.setBackground(lemonYellow);
@@ -332,59 +708,56 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         bottomPanel.add(billAmtLabel);
         bottomPanel.add(billAmtField);
 
-        buttonPanel.setPreferredSize(new Dimension(120, 600));
-        printLabel = new JLabel("Print :");
-        printLabel.setFont(labelFont);
+        pDiscLabel = new JLabel("Disc.Amt.:");
+        pDiscLabel.setFont(labelFont);
 
-        printOptions = new JComboBox<>();
-        printOptions.setFont(labelFont);
-        printOptions.setPreferredSize(new Dimension(90, 30));
-        printOptions.addFocusListener(this);
-        printOptions.addItem("Yes");
-        printOptions.addItem("No");
+        pDiscField = new JTextField(5);
+        pDiscField.setFont(labelFont);
+        pDiscField.setEnabled(false);
+        pDiscField.setDisabledTextColor(Color.darkGray);
+        pDiscField.setBackground(lemonYellow);
+        pDiscField.setText("0.00");
 
-        buttonPanel.add(printLabel);
-        buttonPanel.add(printOptions);
+        bottomPanel.add(pDiscLabel);
+        bottomPanel.add(pDiscField);
+
+        totalQtyLabel = new JLabel("T.Qty.:");
+        totalQtyLabel.setFont(labelFont);
+
+        totalQtyField = new JTextField(5);
+        totalQtyField.setEnabled(false);
+        totalQtyField.setDisabledTextColor(Color.darkGray);
+        totalQtyField.setText("0");
+        totalQtyField.setBackground(lemonYellow);
+        totalQtyField.setFont(labelFont);
+
+        bottomPanel.add(totalQtyLabel);
+        bottomPanel.add(totalQtyField);
 
         paidAmtLabel = new JLabel("Paid Amt.");
         paidAmtLabel.setFont(labelFont);
 
-        paidAmtField = new JTextField(5);
+        paidAmtField = new JTextField(12);
         paidAmtField.setBackground(lemonYellow);
         paidAmtField.addKeyListener(this);
         paidAmtField.addFocusListener(this);
         paidAmtField.setFont(labelFont);
 
-        buttonPanel.add(paidAmtLabel);
-        buttonPanel.add(paidAmtField);
+        bottomPanel.add(paidAmtLabel);
+        bottomPanel.add(paidAmtField);
 
         returnAmtLabel = new JLabel("Return Amt.");
         returnAmtLabel.setFont(labelFont);
 
-        returnAmtField = new JTextField(5);
+        returnAmtField = new JTextField(12);
         returnAmtField.setBackground(lemonYellow);
         returnAmtField.setEnabled(false);
         returnAmtField.setDisabledTextColor(Color.darkGray);
         returnAmtField.setFont(labelFont);
+        returnAmtField.setHorizontalAlignment(SwingConstants.RIGHT);
 
-        buttonPanel.add(returnAmtLabel);
-        buttonPanel.add(returnAmtField);
-
-        sidePanel.add(billInfoPanel);
-        sidePanel.add(custInfoPanel);
-        sidePanel.add(billFormPanel);
-        sidePanel.add(lastScannedItemPanel);
-        sidePanel.add(scrollPane);
-        sidePanel.add(bottomPanel);
-
-        mainPanel.add(sidePanel);
-        mainPanel.add(buttonPanel);
-
-        add(mainPanel);
-        setVisible(true);
-        SwingUtilities.invokeLater(() -> {
-            pBarcodeField.requestFocus();
-        });
+        bottomPanel.add(returnAmtLabel);
+        bottomPanel.add(returnAmtField);
     }
 
     public JButton getSaveBtn() {
@@ -401,29 +774,48 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
             public boolean isCellEditable(int row, int col) {
                 return (col == 4 || col == 5 || col == 6 || col == 7);
             }
+
+            public Object getValueAt(int row, int col) {
+                Object value = super.getValueAt(row, col);
+                if (value instanceof Double) {
+                    return String.format("%.2f", value);
+                }
+                return value;
+            }
+
+            public void setValueAt(Object value, int row, int col) {
+                if (value instanceof Double) {
+                    value = String.format("%.2f", value);
+                }
+                super.setValueAt(value, row, col);
+            }
         };
 
-        String columnNames[] = new String[] { "Sr.No.", "item code", "barcode", "name", "Qty.", "MRP", "Sale Rate",
-                "disc.%", "disc.amt.", "Amt.", "Net Amt.", "Tax", "Tax Amt." };
+        String columnNames[] = new String[] { "Sr.No.", "item code", "barcode", "name", "Qty.", "Sale Rate", "MRP",
+                "disc.%", "disc.amt.", "Amt.", "Net Amt.", "Tax", "Tax Amt.", "ID" };
 
         for (String column : columnNames)
             tableModel.addColumn(column);
 
+        sorter = new TableRowSorter<>(tableModel);
         billTable = new JTable(tableModel);
         billTable.setFont(labelFont);
         billTable.setSelectionBackground(skyBlue);
         billTable.setSelectionForeground(Color.white);
-        sorter = new TableRowSorter<>(tableModel);
         billTable.setRowSorter(sorter);
         billTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
         billTable.setRowHeight(30);
         billTable.addFocusListener(this);
+        billTable.addKeyListener(this);
+        billTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        billTable.setCellSelectionEnabled(true);
+        billTable.getDefaultEditor(Object.class).addCellEditorListener(this);
 
         JTableHeader header = billTable.getTableHeader();
         header.setFont(labelFont);
 
         TableColumnModel columnModel = billTable.getColumnModel();
-        int[] values = new int[] { 70, 140, 170, 220, 70, 100, 100, 90, 120, 120, 120, 70, 120 };
+        int[] values = new int[] { 70, 140, 170, 220, 70, 100, 100, 90, 120, 120, 120, 70, 120, 70 };
         for (int i = 0; i < values.length; i++) {
             TableColumn column = columnModel.getColumn(i);
             column.setPreferredWidth(values[i]);
@@ -438,6 +830,14 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
 
     }
 
+    public void editingCanceled(ChangeEvent e) {
+        calculate();
+    }
+
+    public void editingStopped(ChangeEvent e) {
+        calculate();
+    }
+
     public void propertyChange(PropertyChangeEvent e) {
         //
     }
@@ -445,30 +845,252 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
     public void focusGained(FocusEvent e) {
         Object source = e.getSource();
         if (!(source instanceof JTable)) {
-            ((JComponent) e.getSource()).setBackground(lightYellow);
+            JTextField field = ((JTextField) source);
+            field.setBackground(lightYellow);
+            field.selectAll();
         }
     }
 
     public void focusLost(FocusEvent e) {
         Object source = e.getSource();
-        if (source instanceof JTable) {
+        if (source instanceof JTable && billTable.getRowCount() > 0 && !isForDeleteRow) {
             billTable.removeRowSelectionInterval(0, billTable.getRowCount() - 1);
-        } else {
+        } else if (!(source instanceof JTable)) {
             ((JComponent) e.getSource()).setBackground(lemonYellow);
         }
     }
 
-    public void actionPerformed(ActionEvent e) {
+    String stockId = null;
+    int customerId = 0;
 
+    private int insertIntoCustomerTable(String name, String contact) {
+        int id = 0;
+        try {
+            if (!name.matches(NAME_PATTERN))
+                return id;
+            if (!contact.isBlank() && contact.matches(MOBILE_NO_PATTERN))
+                return id;
+
+            String query = "insert into customers (name,contact_no) values(?,?)";
+            PreparedStatement pst = DBConnection.con.prepareStatement(query);
+            pst.setString(1, name);
+            pst.setString(2, contact);
+
+            int affectedRows = pst.executeUpdate();
+            if (affectedRows > 0) {
+                query = "select id from customers order by id desc limit 1";
+                java.sql.Statement st = DBConnection.con.createStatement();
+                ResultSet result = st.executeQuery(query);
+                if (result.next()) {
+                    id = result.getInt("id");
+                }
+            }
+
+        } catch (Exception e) {
+            System.out.println(e.getMessage() + " at SaleBill.insertIntoCustomerTable()");
+        }
+        return id;
+    }
+
+    private long getProductId(int itemCode) {
+        long id = 0;
+        try {
+            String query = "select id from products where p_id = ?";
+            PreparedStatement pst = DBConnection.con.prepareStatement(query);
+            pst.setInt(1, itemCode);
+            ResultSet result = pst.executeQuery();
+            if (result.next()) {
+                id = result.getLong("id");
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+        return id;
+
+    }
+
+    private boolean saveBillInDB(boolean isNewBill) {
+        double billAmt = Double.parseDouble(billAmtField.getText());
+        boolean flag = false;
+        int billNo = Integer.parseInt(getLastId());
+        if (billAmt != 0) {
+            try {
+                int rows = billTable.getRowCount();
+
+                String name = custNameField.getText().trim().toUpperCase();
+                String contact = mobileField.getText().trim().toUpperCase();
+
+                String salesReturnId = creditNoteIdField.getText().trim();
+
+                salesReturnId = salesReturnId.isEmpty() || salesReturnId.equals("0") ? "0"
+                        : salesReturnId;
+
+                String paymentType = paymentTypes.getSelectedItem().toString();
+                int custId = customerId == 0
+                        ? insertIntoCustomerTable(name, contact)
+                        : customerId;
+                long salesRId = Long.parseLong(salesReturnId);
+
+                String query = "insert into bills(day_wise_bill_no,customer_id,payment_type,sales_return_id,total_amount)values(?,"
+                        + (custId == 0 ? null : custId) + ",?," + (salesRId == 0 ? null : salesRId)
+                        + ",?)";
+                PreparedStatement pst = DBConnection.con.prepareStatement(query);
+                pst.setInt(1, billNo);
+                pst.setString(2, paymentType);
+                pst.setDouble(3, billAmt);
+
+                customerId = 0;
+
+                int affectedRows = pst.executeUpdate();
+                pst.close();
+                if (affectedRows > 0) {
+                    query = "select id from bills where day_wise_bill_no = ? and date(created_at) = ?";
+                    pst = DBConnection.con.prepareStatement(query);
+                    pst.setInt(1, billNo);
+                    pst.setDate(2, new java.sql.Date(dateChooser.getDate().getTime()));
+
+                    ResultSet result = pst.executeQuery();
+                    long billId = 0;
+                    if (result.next()) {
+                        billId = result.getLong("id");
+                    }
+                    pst.close();
+                    result.close();
+                    for (int i = 0; i < rows; i++) {
+                        int itemCode = Integer.parseInt(billTable.getValueAt(i, 1).toString());
+                        long productId = getProductId(itemCode);
+                        int qty = Integer.parseInt(billTable.getValueAt(i, 4).toString());
+                        double rate = Double.parseDouble(billTable.getValueAt(i, 5).toString());
+                        double mrp = Double.parseDouble(billTable.getValueAt(i, 6).toString());
+                        double discount = Double.parseDouble(billTable.getValueAt(i, 7).toString());
+                        String stockId = billTable.getValueAt(i, 13).toString();
+                        // System.out.println(stockId);
+
+                        query = "insert into sales(product_id,bill_id,new_rate,new_mrp,quantity,discount,inventory_id)values(?,?,?,?,?,?,?)";
+                        pst = DBConnection.con.prepareStatement(query);
+                        pst.setLong(1, productId);
+                        pst.setLong(2, billId);
+                        pst.setDouble(3, rate);
+                        pst.setDouble(4, mrp);
+                        pst.setInt(5, qty);
+                        pst.setDouble(6, discount);
+                        pst.setLong(7, stockId.contains("-") ? null
+                                : Long.parseLong(stockId));
+                        affectedRows = pst.executeUpdate();
+                        pst.close();
+                        if (affectedRows > 0 && !stockId.contains("-")) {
+                            // System.out.println(Long.parseLong(stockId));
+                            query = "select current_quantity from inventories where id = ? limit 1";
+                            pst = DBConnection.con.prepareStatement(query);
+                            pst.setLong(1, Long.parseLong(stockId));
+                            result = pst.executeQuery();
+
+                            if (result.next()) {
+                                int availableQty = result.getInt("current_quantity");
+                                query = "update inventories set current_quantity = ? where id = ?";
+                                pst = DBConnection.con.prepareStatement(query);
+                                pst.setInt(1, (availableQty - qty));
+                                pst.setLong(2, Long.parseLong(stockId));
+                                affectedRows = pst.executeUpdate();
+                                flag = affectedRows > 0;
+                            }
+                        }
+                    }
+                }
+            } catch (Exception exc) {
+                try {
+                    deleteBill(billNo);
+                } catch (Exception exc1) {
+                    System.out.println(exc1.getMessage() + " at SaleBill.actionPerformed().save 1030");
+                }
+                System.out.println(exc.getMessage() + " at SaleBill.actionPerformed().save 1032");
+                JOptionPane.showMessageDialog(this, exc.getMessage(), "Error",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        } else {
+            JOptionPane.showMessageDialog(this, "Bill cannot save with zero amount..!", "Error",
+                    JOptionPane.ERROR_MESSAGE);
+            flag = false;
+        }
+        return flag;
+    }
+
+    Object actionSource = saveBtn;
+    int billNoForUpdateOrDelete = 0;
+    java.sql.Date dateForUpdateOrDelete = null;
+
+    public void actionPerformed(ActionEvent e) {
         Object source = e.getSource();
         if (source.equals(newBtn)) {
             reCreate();
         } else {
-
             if (source.equals(saveBtn)) {
-                JOptionPane.showConfirmDialog(null, "Are you sure to save this information?",
-                        "Confirmation",
-                        JOptionPane.OK_CANCEL_OPTION);
+                if (action.equals(SAVE_ACTION)) {
+                    int choseOption = JOptionPane.showConfirmDialog(this, "Are you sure to save this information?",
+                            "Confirmation",
+                            JOptionPane.OK_CANCEL_OPTION);
+                    if (choseOption == JOptionPane.OK_OPTION) {
+                        try {
+                            boolean flag = saveBillInDB(true);
+                            if (flag) {
+                                newBtn.doClick();
+                            } else {
+                                deleteBill(Integer.parseInt(getLastId()));
+                                JOptionPane.showMessageDialog(this, "Something wrong..try again!", "Error",
+                                        JOptionPane.ERROR_MESSAGE);
+                            }
+                        } catch (Exception exc) {
+                            System.out.println(exc.getMessage() + " at SaleBill.actionPerformed().save 1045");
+                        }
+                    }
+                }
+
+                if (action.equals(UPDATE_ACTION)) {
+                    int choseOption = JOptionPane.showConfirmDialog(this, "Are you sure to update this information?",
+                            "Confirmation",
+                            JOptionPane.OK_CANCEL_OPTION);
+                    if (choseOption == JOptionPane.OK_OPTION) {
+                        double billAmt = Double.parseDouble(billAmtField.getText());
+                        if (billAmt != 0) {
+                            try {
+                                if (recoverStock() && deleteBill(billNoForUpdateOrDelete)) {
+                                    boolean flag = saveBillInDB(false);
+                                    if (flag) {
+                                        newBtn.doClick();
+                                    } else {
+                                        deleteBill(billNoForUpdateOrDelete);
+                                        JOptionPane.showMessageDialog(this, "Something wrong..try again!", "Error",
+                                                JOptionPane.ERROR_MESSAGE);
+                                    }
+                                }
+                            } catch (Exception exc) {
+                                System.out.println(exc.getMessage() + " at SaleBill.actionPerformed().update 1069");
+                                JOptionPane.showMessageDialog(this, exc.getMessage(), "Error",
+                                        JOptionPane.ERROR_MESSAGE);
+                            }
+                        }
+                    }
+                }
+
+                if (action.equals(DELETE_ACTION)) {
+                    int choseOption = JOptionPane.showConfirmDialog(this, "Are you sure to delete this information?",
+                            "Confirmation",
+                            JOptionPane.OK_CANCEL_OPTION);
+                    if (choseOption == JOptionPane.OK_OPTION) {
+                        try {
+                            if (recoverStock() && deleteBill(billNoForUpdateOrDelete)) {
+                                newBtn.doClick();
+                            } else {
+                                JOptionPane.showMessageDialog(this, "Bill cannot deleted..try again!!");
+                            }
+                        } catch (Exception exc) {
+                            System.out.println(exc.getMessage() + " at SaleBill.actionPerformed().delete 1071");
+                            JOptionPane.showMessageDialog(this, exc.getMessage(), "Error",
+                                    JOptionPane.ERROR_MESSAGE);
+                        }
+                    }
+                }
+
             }
             if (source.equals(cancelBtn)) {
                 deleteBtn.setEnabled(true);
@@ -478,12 +1100,12 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
             if (source.equals(editBtn) || source.equals(deleteBtn)) {
                 billNoField.setEnabled(true);
                 dateChooser.setEnabled(true);
-
                 billNoField.requestFocus();
                 billNoField.selectAll();
+                actionSource = source.equals(editBtn) ? editBtn : deleteBtn;
             }
             if (source.equals(exitBtn)) {
-                boolean res = JOptionPane.showConfirmDialog(null, "Are you sure to exit?", "Confirmation",
+                boolean res = JOptionPane.showConfirmDialog(this, "Are you sure to exit?", "Confirmation",
                         JOptionPane.OK_CANCEL_OPTION) == 0;
                 if (res) {
                     String key = frameKeyMap.get(this);
@@ -491,23 +1113,265 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
                     dispose();
                 }
             }
+
+            if (source.equals(selectBtn)) {
+                try {
+                    if (selectBtn.getActionCommand().equals("other views")) {
+                        JTable table = productView.getTable();
+                        int row = table.getSelectedRow();
+                        if (row != -1) {
+                            String barcode = table.getValueAt(row, 2).toString();
+                            String id = table.getValueAt(row, 1).toString();
+                            String rate = table.getValueAt(row, 4).toString();
+                            String mrp = table.getValueAt(row, 5).toString();
+                            String pName = table.getValueAt(row, 3).toString();
+                            pIdField.setText(id);
+                            pBarcodeField.setText(barcode);
+                            pNameField.setText(pName);
+                            pRateField.setText(rate);
+                            pMRPField.setText(mrp);
+                            int availableStock = getStock(Integer.parseInt(pIdField.getText()));
+                            lastScannedItemField.setText(pBarcodeField.getText().trim() + " Item Name:" + pName
+                                    + " Available Qty.:" + availableStock);
+                            showStockList(id);
+                        } else {
+                            JOptionPane.showMessageDialog(this, "Item not selected..!");
+                        }
+                    } else {
+                        JTable table = customerView.getTable();
+                        int row = table.getSelectedRow();
+                        if (row != -1) {
+                            String name = table.getValueAt(row, 2).toString();
+                            String contactNo = table.getValueAt(row, 3).toString();
+                            customerId = Integer.parseInt(table.getValueAt(row, 1).toString());
+
+                            custNameField.setText(name);
+                            mobileField.setText(contactNo);
+
+                            dataViewer.setVisible(false);
+                        } else {
+                            customerId = 0;
+                            dataViewer.setVisible(false);
+                        }
+                        pBarcodeField.requestFocus();
+                    }
+                } catch (Exception exc) {
+                    System.out.println(exc.getMessage() + " at SaleBill.actionPerformed() 1114");
+                    JOptionPane.showMessageDialog(this, exc.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+
+            if (source.equals(stockSelectBtn)) {
+                int row = stockTable.getSelectedRow();
+                if (row != -1) {
+                    stockId = stockTable.getValueAt(row, 0).toString();
+                    pRateField.setText(stockTable.getValueAt(row, 3).toString());
+                    pMRPField.setText(stockTable.getValueAt(row, 2).toString());
+                    dataViewer.setVisible(false);
+                } else {
+                    stockId = null;
+                }
+                if (isForShowProductDetails)
+                    pQtyField.requestFocus();
+                else
+                    insertIntoBillTable();
+            }
         }
 
     }
 
-    public void keyPressed(KeyEvent e) {
-        if (e.getSource().equals(pMRPField)) {
-            String b = pBarcodeField.getText();
-            String id = pIdField.getText();
-            String name = pNameField.getText();
-            String qty = pQtyField.getText();
-            String rate = pRateField.getText();
-            String mrp = pMRPField.getText();
+    private boolean recoverStock() {
+        previousBillRecords.forEach(map -> {
+            try {
+                long stockId = Long.parseLong(map.get("stock_id").toString());
+                long qty = Long.parseLong(map.get("quantity").toString());
 
-            tableModel.addRow(new Object[] {
-                    1, id, b, name, qty, mrp, rate, 10, 10, 90, 90 * Integer.parseInt(qty), 18, 36,
-                    90 * Integer.parseInt(qty)
-            });
+                String query = "select current_quantity from inventories where id = ?";
+                PreparedStatement pst = DBConnection.con.prepareStatement(query);
+                pst.setLong(1, stockId);
+                ResultSet result = pst.executeQuery();
+
+                if (result.next()) {
+                    int current_quantity = result.getInt("current_quantity");
+                    current_quantity += qty;
+                    query = "update inventories set current_quantity = ? where id = ?";
+                    pst = DBConnection.con.prepareStatement(query);
+                    pst.setInt(1, current_quantity);
+                    pst.setLong(2, stockId);
+
+                    flagToRecordDelete = pst.executeUpdate() > 0;
+                }
+
+            } catch (Exception exc) {
+                System.out.println(exc.getMessage() + " at SaleBill.recoverStock() 1206");
+            }
+        });
+        return flagToRecordDelete;
+    }
+
+    Boolean flagToRecordDelete = false;
+
+    private boolean deleteBill(int billNo) throws Exception {
+        String query = "delete from bills where day_wise_bill_no = ? and date(created_at) = ?";
+        PreparedStatement pst = DBConnection.con.prepareStatement(query);
+        pst.setInt(1, billNo);
+        pst.setDate(2, new java.sql.Date(dateChooser.getDate().getTime()));
+        return pst.executeUpdate() > 0;
+    }
+
+    private void updateSrNo() {
+        int rows = tableModel.getRowCount();
+        if (rows > 0) {
+            cnt = 1;
+            for (int row = rows - 1; row >= 0; tableModel.setValueAt(cnt++, row, 0), row--)
+                ;
+        } else {
+            cnt = 1;
         }
+    }
+
+    int cnt = 1;
+    boolean isForShowProductDetails, isForDeleteRow;
+    CustomerView customerView;
+    java.util.List<HashMap<String, Object>> previousBillRecords;
+
+    public void keyReleased(KeyEvent e) {
+        String key = KeyEvent.getKeyText(e.getKeyCode());
+        Object source = e.getSource();
+
+        if ((source.equals(pBarcodeField) || source.equals(pIdField)) && key.equals("F1")) {
+            isForShowProductDetails = source.equals(pIdField);
+            productView = new ProductView(this);
+            productView.getScrollPane().setPreferredSize(new Dimension(800, 350));
+            createViewer(productView);
+        }
+
+        if (source.equals(custNameField) && key.equals("F1")) {
+            customerView = new CustomerView(this);
+            customerView.getScrollPane().setPreferredSize(new Dimension(800, 350));
+            createViewer(customerView);
+        }
+
+        if (source.equals(billTable)) {
+            String modifier = InputEvent.getModifiersExText(e.getModifiersEx());
+            if (modifier.equals("Ctrl") && key.equals("D")) {
+                isForDeleteRow = true;
+                int option = JOptionPane.showConfirmDialog(this, "Are you sure to remove this entry?", "Confirmation",
+                        JOptionPane.OK_CANCEL_OPTION);
+                if (option == JOptionPane.OK_OPTION) {
+                    int row = billTable.getSelectedRow();
+                    if (row >= 0) {
+                        tableModel.removeRow(row);
+                        calculate();
+                        updateSrNo();
+                        if (tableModel.getRowCount() == 0) {
+                            pBarcodeField.requestFocus();
+                            rowId = 1;
+                        }
+                    }
+                }
+                isForDeleteRow = false;
+            }
+        }
+
+        if (productView != null && source.equals(productView.getTable()) && key.equals("Enter")) {
+            selectBtn.doClick();
+        }
+
+        if (source.equals(paidAmtField) && key.equals("Enter")) {
+            double amt = Double.parseDouble(paidAmtField.getText().trim());
+            double returnAmt = amt - Double.parseDouble(billAmtField.getText().trim());
+            returnAmt = Math.round(returnAmt);
+            returnAmtField.setText(String.format("%.2f", returnAmt));
+        }
+
+        if (source.equals(billNoField) && key.equals("Enter")) {
+            try {
+                tableModel.setRowCount(0);
+                String query = "select * from bills,sales,products where bills.id = sales.bill_id and products.id = sales.product_id and day_wise_bill_no = ? and date(bills.created_at) = ? order by sales.id desc";
+                int billNo = Integer.parseInt(billNoField.getText());
+                java.sql.Date date = new java.sql.Date(dateChooser.getDate().getTime());
+
+                PreparedStatement pst = DBConnection.con.prepareStatement(query);
+                pst.setInt(1, billNo);
+                pst.setDate(2, date);
+
+                ResultSet result = pst.executeQuery();
+                int cnt = 1, flag = 0;
+                previousBillRecords = new ArrayList<HashMap<String, Object>>();
+                while (result.next()) {
+                    flag = 1;
+                    long itemCode = result.getLong("p_id");
+                    String barcode = result.getString("barcode_no");
+                    String name = result.getString("product_name");
+                    long qty = result.getLong("quantity");
+                    double mrp = result.getDouble("new_mrp");
+                    double rate = result.getDouble("new_rate");
+                    double discount = result.getDouble("discount");
+                    long stockId = result.getLong("inventory_id");
+
+                    HashMap<String, Object> map = new HashMap<>();
+                    map.put("p_id", itemCode);
+                    map.put("barcode_no", barcode);
+                    map.put("product_name", name);
+                    map.put("quantity", qty);
+                    map.put("rate", rate);
+                    map.put("mrp", mrp);
+                    map.put("discount", discount);
+                    map.put("stock_id", stockId);
+
+                    previousBillRecords.add(map);
+                    double dAmt = (rate * discount) / 100;
+                    tableModel.insertRow(0, new Object[] {
+                            cnt++, itemCode, barcode, name, qty,
+                            rate,
+                            mrp,
+                            discount,
+                            dAmt,
+                            rate - dAmt,
+                            (rate - dAmt) * qty,
+                            taxVal, 0, stockId == 0 ? "-" : stockId
+                    });
+                }
+
+                if (flag == 0) {
+                    JOptionPane.showMessageDialog(this, "Bill not found..try again!", "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                } else {
+                    billNoForUpdateOrDelete = billNo;
+                    dateForUpdateOrDelete = date;
+                    action = actionSource.equals(editBtn) ? UPDATE_ACTION : DELETE_ACTION;
+                }
+                calculate();
+            } catch (Exception exc) {
+                JOptionPane.showMessageDialog(this, "Invalid bill no..try again!", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+
+        if (source.equals(creditNoteIdField) && key.equals("Enter")) {
+            try {
+                long creditNoteId = Long.parseLong(creditNoteIdField.getText().trim());
+                String query = "select total_amount from sales_returns where id = ?";
+                PreparedStatement pst = DBConnection.con.prepareStatement(query);
+                pst.setLong(1, creditNoteId);
+                ResultSet result = pst.executeQuery();
+                if (result.next()) {
+                    String amt = result.getString("total_amount");
+                    creditNoteAmtField.setText(amt);
+                    pBarcodeField.requestFocus();
+                } else {
+                    JOptionPane.showMessageDialog(this, "Record of credit note are not found..!", "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                    creditNoteIdField.setText("0");
+                    creditNoteAmtField.setText("0");
+                }
+            } catch (Exception exc) {
+                JOptionPane.showMessageDialog(this, exc.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                creditNoteIdField.setText("0");
+                creditNoteAmtField.setText("0");
+            }
+            calculate();
+        }
+
     }
 }

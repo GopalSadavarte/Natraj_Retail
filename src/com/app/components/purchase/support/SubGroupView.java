@@ -3,10 +3,9 @@ package com.app.components.purchase.support;
 import javax.swing.*;
 import javax.swing.table.*;
 import com.app.config.*;
-import com.app.partials.interfaces.AppConstants;
-import com.app.partials.interfaces.Validation;
-
+import com.app.partials.interfaces.*;
 import java.awt.*;
+import java.awt.event.*;
 import java.sql.*;
 
 public class SubGroupView extends JPanel implements AppConstants, Validation {
@@ -16,7 +15,7 @@ public class SubGroupView extends JPanel implements AppConstants, Validation {
   TableRowSorter<TableModel> sorter;
   public final JScrollPane scrollPane;
 
-  public SubGroupView() {
+  public SubGroupView(JInternalFrame frame) {
     setLayout(new FlowLayout());
     setBackground(Color.white);
 
@@ -31,7 +30,7 @@ public class SubGroupView extends JPanel implements AppConstants, Validation {
     tableModel.addColumn("Sub group name");
     tableModel.addColumn("Group name");
 
-    setTableData();
+    setTableData(null);
 
     table = new JTable(tableModel);
     sorter = new TableRowSorter<TableModel>(tableModel);
@@ -40,6 +39,10 @@ public class SubGroupView extends JPanel implements AppConstants, Validation {
     table.setSelectionBackground(skyBlue);
     table.setSelectionForeground(Color.white);
     table.setRowHeight(30);
+    table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+    table.addKeyListener((KeyListener) frame);
+    if (table.getRowCount() > 0)
+      table.setRowSelectionInterval(0, 0);
 
     JTableHeader header = table.getTableHeader();
     header.setFont(labelFont);
@@ -54,10 +57,19 @@ public class SubGroupView extends JPanel implements AppConstants, Validation {
     setVisible(true);
   }
 
-  private void setTableData() {
+  public void setTableData(String searchValue) {
     try {
-      String query = "select * from groups,sub_groups where groups.id = sub_groups.group_id";
-      ResultSet result = DBConnection.executeQuery(query);
+      String query = "";
+      ResultSet result;
+      if (searchValue == null || searchValue.isBlank()) {
+        query = "select * from groups,sub_groups where groups.id = sub_groups.group_id";
+        result = DBConnection.executeQuery(query);
+      } else {
+        query = "select * from groups,sub_groups where groups.id = sub_groups.group_id where sub_group_name like ? limit 1";
+        PreparedStatement pst = DBConnection.con.prepareStatement(query);
+        pst.setString(1, '%' + searchValue.trim() + '%');
+        result = pst.executeQuery();
+      }
       int srNo = 1;
       while (result.next()) {
         tableModel.addRow(new Object[] {
@@ -72,7 +84,7 @@ public class SubGroupView extends JPanel implements AppConstants, Validation {
     }
   }
 
-  public JTable getTable(){
+  public JTable getTable() {
     return table;
   }
 }

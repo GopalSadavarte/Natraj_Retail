@@ -16,7 +16,6 @@ import com.app.components.reports.stock.*;
 import com.app.components.sales.*;
 import com.app.components.setting.*;
 import com.app.components.utilities.*;
-
 import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
@@ -26,10 +25,10 @@ import javax.swing.event.*;
 public class MDI extends Navbar {
 
     JInternalFrame frame;
-    JDesktopPane desktop = new JDesktopPane();
-    HashMap<String, JInternalFrame> frameTracker = new HashMap<>();
-    HashMap<JInternalFrame, String> frameKeyMap = new HashMap<>();
-    InternalFrameAdapter internalFrameListener = new InternalFrameAdapter() {
+    final JDesktopPane desktop = new JDesktopPane();
+    final HashMap<String, JInternalFrame> frameTracker = new HashMap<>();
+    final HashMap<JInternalFrame, String> frameKeyMap = new HashMap<>();
+    final InternalFrameAdapter internalFrameListener = new InternalFrameAdapter() {
         public void internalFrameClosing(InternalFrameEvent e) {
             JInternalFrame frame = e.getInternalFrame();
             if (frame instanceof SaleBill) {
@@ -47,7 +46,7 @@ public class MDI extends Navbar {
         }
     };
     ImageIcon icon = new ImageIcon(MDI.class.getResource("logo.jpg"));
-    public static int OPTION_PANE_COUNT = 0;
+    int OPTION_PANE_COUNT = 0;
 
     public MDI() {
         setBackground(Color.white);
@@ -125,9 +124,11 @@ public class MDI extends Navbar {
                         if (res) {
                             frameTracker.remove(frameKeyMap.get(frame));
                             frame.dispose();
+                            OPTION_PANE_COUNT = 0;
                         }
-                        OPTION_PANE_COUNT = 0;
-                    } else {
+                        if (!res)
+                            OPTION_PANE_COUNT = 0;
+                    } else if (OPTION_PANE_COUNT == 0) {
                         frameTracker.remove(frameKeyMap.get(frame));
                         frame.dispose();
                     }
@@ -186,7 +187,7 @@ public class MDI extends Navbar {
                 break;
             case "Sales Return Ctrl+Alt+S":
                 if (!frameTracker.containsKey("Sales Return Ctrl+Alt+S"))
-                    frame = new SalesReturnEntry(dialogBox);
+                    frame = new SalesReturnEntry(source, frameTracker, frameKeyMap, dialogBox);
                 key = "Sales Return Ctrl+Alt+S";
                 break;
             case "Expiry Entry Ctrl+E":

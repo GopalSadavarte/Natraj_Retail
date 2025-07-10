@@ -32,6 +32,7 @@ public final class SubGroup extends AbstractButton {
         setBackground(Color.white);
         setSize(toolkit.getScreenSize());
         setLayout(flowLayoutCenter);
+        setView("SubGroup");
 
         mainPanel = new JPanel(flowLayoutCenter);
         mainPanel.setBackground(Color.white);
@@ -243,7 +244,7 @@ public final class SubGroup extends AbstractButton {
         }
     }
 
-    public void keyPressed(KeyEvent e) {
+    public void keyReleased(KeyEvent e) {
         String key = KeyEvent.getKeyText(e.getKeyCode());
         Object source = e.getSource();
         if (source.equals(subGroupIdField)) {
@@ -269,29 +270,9 @@ public final class SubGroup extends AbstractButton {
             }
 
             if (key.equals("F1")) {
-                view = new SubGroupView();
+                view = new SubGroupView(this);
                 view.scrollPane.setPreferredSize(new Dimension(800, 350));
                 createViewer(view);
-            }
-        }
-    }
-
-    public void keyReleased(KeyEvent e) {
-        Object source = e.getSource();
-        String key = KeyEvent.getKeyText(e.getKeyCode());
-        if (source.equals(searchField)) {
-            if (key.equals("Enter")) {
-                selectBtn.doClick();
-            } else {
-                String value = searchField.getText().toUpperCase().trim();
-                JTable table = view.getTable();
-                int rows = table.getRowCount();
-                for (int i = 0; i < rows; i++) {
-                    String rowVal = table.getValueAt(i, 2).toString();
-                    table.setRowHeight(i, rowVal.contains(value) ? table.getRowHeight() : 1);
-                    if (rowVal.contains(value))
-                        table.setRowSelectionInterval(i, i);
-                }
             }
         }
     }
