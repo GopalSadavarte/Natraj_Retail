@@ -26,7 +26,6 @@ public final class Group extends AbstractButton {
         setBackground(Color.white);
         setSize(toolkit.getScreenSize());
         setLayout(flowLayoutCenter);
-        setView("Group");
 
         mainPanel = new JPanel(flowLayoutCenter);
         mainPanel.setBackground(Color.white);

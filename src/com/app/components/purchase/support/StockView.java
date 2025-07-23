@@ -22,9 +22,9 @@ import javax.swing.table.TableRowSorter;
 
 import com.app.config.DBConnection;
 import com.app.partials.interfaces.AppConstants;
-import com.app.partials.interfaces.Validation;
+import com.app.partials.interfaces.TableExporter;
 
-public class StockView extends JPanel implements AppConstants, Validation, KeyListener {
+public class StockView extends JPanel implements AppConstants, KeyListener, TableExporter {
     final JTable table;
     final DefaultTableModel tableModel;
     final TableRowSorter<TableModel> sorter;
@@ -75,7 +75,7 @@ public class StockView extends JPanel implements AppConstants, Validation, KeyLi
             column.setMinWidth(widths[i]);
         }
 
-        setTableData();
+        setTableData(null);
 
         scrollPane = new JScrollPane(table);
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
@@ -122,7 +122,7 @@ public class StockView extends JPanel implements AppConstants, Validation, KeyLi
     public void keyTyped(KeyEvent e) {
     }
 
-    private void setTableData() {
+    public void setTableData(String searchValue) {
         try {
             String query = "select * from inventories where product_id = ? and current_quantity != 0 order by sale_rate asc";
             PreparedStatement pst = DBConnection.con.prepareStatement(query);
@@ -134,7 +134,7 @@ public class StockView extends JPanel implements AppConstants, Validation, KeyLi
                 String exp = result.getString("product_exp_date");
                 exp = exp != null ? exp : "NA";
                 tableModel.addRow(new Object[] {
-                        result.getString("id"), result.getInt("current_quantity"),
+                        result.getLong("id"), result.getInt("current_quantity"),
                         result.getDouble("product_mrp"),
                         result.getDouble("sale_rate"),
                         exp

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use Database\Factories\DealerFactory;
 use Database\Factories\UserFactory;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use App\Models\Product;
@@ -22,7 +23,7 @@ class DatabaseSeeder extends Seeder
         UserFactory::new()->create();
         GroupFactory::new()->create();
         SubGroupFactory::new()->create();
-        for ($i = 1; $i <= 100000; $i++) {
+        for ($i = 1; $i <= 10000; $i++) {
             Product::create([
                 'p_id' => $i,
                 'barcode_no' => '00' . $i,
@@ -41,7 +42,7 @@ class DatabaseSeeder extends Seeder
 
         $i = 0;
         while ($i <= 1) {
-            for ($j = 1; $j <= 100000; $j++) {
+            for ($j = 1; $j <= 10000; $j++) {
                 InventoryFactory::new()->create();
             }
             $i++;
@@ -50,6 +51,7 @@ class DatabaseSeeder extends Seeder
         for ($i = 0; $i < 10; $i++) {
             CustomerFactory::new()->create();
             SalesReturnFactory::new()->create();
+            DealerFactory::new()->create();
         }
     }
 }

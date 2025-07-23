@@ -20,13 +20,13 @@ import com.app.config.DBConnection;
 import com.app.partials.interfaces.AppConstants;
 import com.app.partials.interfaces.TableExporter;
 
-public class CustomerView extends JPanel implements AppConstants,TableExporter {
+public class DealerView extends JPanel implements AppConstants ,TableExporter{
     final JTable table;
     final DefaultTableModel tableModel;
     TableRowSorter<TableModel> sorter;
     final JScrollPane scrollPane;
 
-    public CustomerView(KeyListener listener) {
+    public DealerView(KeyListener listener) {
 
         setLayout(new FlowLayout());
         setBackground(Color.white);
@@ -41,6 +41,8 @@ public class CustomerView extends JPanel implements AppConstants,TableExporter {
         tableModel.addColumn("ID");
         tableModel.addColumn("Name");
         tableModel.addColumn("Contact No.");
+        tableModel.addColumn("Email");
+        tableModel.addColumn("GST No.");
 
         setTableData(null);
 
@@ -52,12 +54,13 @@ public class CustomerView extends JPanel implements AppConstants,TableExporter {
         table.setFont(labelFont);
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.addKeyListener(listener);
+        table.setPreferredScrollableViewportSize(new Dimension(900,350));
         table.setRowHeight(30);
         if (table.getRowCount() > 0)
             table.setRowSelectionInterval(0, 0);
 
         TableColumnModel columnModel = table.getColumnModel();
-        int[] values = new int[] { 70, 70, 200, 140 };
+        int[] values = new int[] { 70, 70, 200, 140, 200, 200 };
         for (int i = 0; i < values.length; i++) {
             TableColumn column = columnModel.getColumn(i);
             column.setPreferredWidth(values[i]);
@@ -83,10 +86,10 @@ public class CustomerView extends JPanel implements AppConstants,TableExporter {
             ResultSet result;
             tableModel.setRowCount(0);
             if (searchValue == null || searchValue.isBlank()) {
-                query = "select * from customers";
+                query = "select * from dealers";
                 result = DBConnection.executeQuery(query);
             } else {
-                query = "select * from customers where name like ?";
+                query = "select * from dealers where name like ?";
                 PreparedStatement pst = DBConnection.con.prepareStatement(query);
                 pst.setString(1, '%' + searchValue.trim() + '%');
                 result = pst.executeQuery();
@@ -99,6 +102,8 @@ public class CustomerView extends JPanel implements AppConstants,TableExporter {
                         result.getLong("id"),
                         result.getString("name"),
                         result.getString("contact_no"),
+                        result.getString("email"),
+                        result.getString("gst_no"),
                 });
             }
         } catch (Exception e) {

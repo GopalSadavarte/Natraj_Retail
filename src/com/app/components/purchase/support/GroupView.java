@@ -8,7 +8,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.sql.*;
 
-public class GroupView extends JPanel implements AppConstants, Validation {
+public class GroupView extends JPanel implements AppConstants,TableExporter {
 
   final JTable table;
   final DefaultTableModel tableModel;
@@ -60,6 +60,7 @@ public class GroupView extends JPanel implements AppConstants, Validation {
     try {
       String query = "";
       ResultSet result;
+      tableModel.setRowCount(0);
       if (searchValue == null || searchValue.isBlank()) {
         query = "select * from groups";
         result = DBConnection.executeQuery(query);
@@ -73,7 +74,7 @@ public class GroupView extends JPanel implements AppConstants, Validation {
       while (result.next()) {
         tableModel.addRow(new Object[] {
             srNo++,
-            result.getInt("id"),
+            result.getLong("id"),
             result.getString("g_name")
         });
       }

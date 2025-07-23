@@ -9,7 +9,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.sql.*;
 
-public class ProductView extends JPanel implements AppConstants, Validation {
+public class ProductView extends JPanel implements AppConstants ,TableExporter{
 
   final JTable table;
   final DefaultTableModel tableModel;
@@ -76,6 +76,7 @@ public class ProductView extends JPanel implements AppConstants, Validation {
     try {
       String query = "";
       ResultSet result;
+      tableModel.setRowCount(0);
       if (searchValue == null || searchValue.isBlank()) {
         query = "select * from products";
         result = DBConnection.executeQuery(query);
@@ -90,12 +91,12 @@ public class ProductView extends JPanel implements AppConstants, Validation {
       while (result.next()) {
         tableModel.addRow(new Object[] {
             srNo++,
-            result.getInt("p_id"),
+            result.getLong("p_id"),
             result.getString("barcode_no"),
             result.getString("product_name"),
-            result.getString("sale_rate"),
-            result.getString("product_mrp"),
-            result.getString("discount"),
+            result.getDouble("sale_rate"),
+            result.getDouble("product_mrp"),
+            result.getDouble("discount"),
         });
       }
     } catch (Exception e) {

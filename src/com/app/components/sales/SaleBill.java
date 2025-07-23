@@ -10,12 +10,11 @@ import com.app.partials.event.*;
 import com.toedter.calendar.*;
 import java.awt.*;
 import java.awt.event.*;
-import java.beans.*;
 import java.sql.*;
 import java.util.*;
 import java.util.Date;
 
-public final class SaleBill extends AbstractButton implements PropertyChangeListener, CellEditorListener {
+public final class SaleBill extends AbstractButton implements CellEditorListener {
 
     JLabel lastScannedItemLabel, dateLabel, billNoLabel, counterNoLabel, custNameLabel, custMobileLabel, pIdLabel,
             pBarcodeLabel, printLabel,
@@ -36,9 +35,6 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
     JScrollPane scrollPane;
     ProductView productView;
     JButton stockSelectBtn;
-    int rowId = 1;
-    final Integer UPDATE_ACTION = -1, SAVE_ACTION = 1, DELETE_ACTION = 0;
-    Integer action = SAVE_ACTION;
 
     private void insertIntoBillTable() {
         try {
@@ -52,7 +48,7 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
             boolean bRes = isBarcodeValid(b);
             boolean idRes = isBarcodeValid(id);
             double rateVal = Double.parseDouble(rate);
-            int qtyVal = Integer.parseInt(qty);
+            double qtyVal = Double.parseDouble(qty);
 
             if (!bRes || !idRes) {
                 JOptionPane.showMessageDialog(this, "Barcode OR Item code is invalid!!", "Error",
@@ -76,7 +72,9 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
             int row = checkRecordExist(id, rateVal, mrpVal);
             if (row == -1) {
                 tableModel.insertRow(0, new Object[] {
-                        cnt++, id, b, name, qtyVal,
+                        cnt++, Long.parseLong(
+                                id),
+                        b, name, qtyVal,
                         rateVal,
                         mrpVal,
                         discountVal,
@@ -131,16 +129,20 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
                 return;
             }
 
-            int barcode = Integer.parseInt(
-                    isForShowProductDetails ? pIdField.getText().trim()
-                            : pBarcodeField.getText().trim());
+            // int barcode = Integer.parseInt(
+            // isForShowProductDetails ? pIdField.getText().trim()
+            // : pBarcodeField.getText().trim());
+            String barcode = "";
+            if (!isForShowProductDetails) {
+                barcode = pBarcodeField.getText().trim();
+            }
 
             String query = isForShowProductDetails ? "select * from products where p_id = ? limit 1"
                     : "select * from products where barcode_no = ? limit 1";
 
             PreparedStatement pst = DBConnection.con.prepareStatement(query);
             if (isForShowProductDetails) {
-                pst.setInt(1, barcode);
+                pst.setLong(1, Long.parseLong(pIdField.getText().trim()));
             } else {
                 pst.setString(1, "00" + barcode);
             }
@@ -158,9 +160,10 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
                 pMRPField.setText(mrp);
                 discountVal = result.getDouble("discount");
 
-                int availableStock = getStock(Integer.parseInt(pIdField.getText()));
+                int availableStock = getStock(Long.parseLong(pIdField.getText()));
                 lastScannedItemField.setText(
-                        pBarcodeField.getText().trim() + " Item Name:" + pName + " Available Qty.:" + availableStock);
+                        pBarcodeField.getText().trim() + " Item Name:" + pName + " Rate:" + rate + " Qty.:"
+                                + availableStock);
                 showStockList(pIdField.getText());
             } else {
                 JOptionPane.showMessageDialog(this, "In-correct barcode or item code...!", "Error",
@@ -180,10 +183,10 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         }
     }
 
-    private int getStock(int pId) throws Exception {
+    private int getStock(long pId) throws Exception {
         PreparedStatement pst = DBConnection.con.prepareStatement(
                 "select sum(current_quantity) as qty from inventories where product_id = ?");
-        pst.setInt(1, pId);
+        pst.setLong(1, pId);
         ResultSet result = pst.executeQuery();
         if (result.next()) {
             return result.getInt("qty");
@@ -261,11 +264,11 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
 
         double total = 0;
         double tDisc = 0;
-        long tQty = 0;
+        double tQty = 0;
 
         for (int i = 0; i < rows; i++) {
             try {
-                long qty = Long.parseLong(tableModel.getValueAt(i, 4).toString().trim());
+                double qty = Double.parseDouble(tableModel.getValueAt(i, 4).toString().trim());
                 double rate = Double.parseDouble(tableModel.getValueAt(i, 5).toString().trim());
                 String d = tableModel.getValueAt(i, 7).toString().trim();
                 if (d.contains("%"))
@@ -374,8 +377,7 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         pQtyField.addKeyListener(new CustomKeyListener(pRateField));
         pRateField.addKeyListener(new CustomKeyListener(pMRPField));
 
-        String billNo = getLastId();
-        billNoField.setText(billNo);
+        billNoField.setText(getLastId());
         setBottomFields();
         setVisible(true);
         SwingUtilities.invokeLater(() -> {
@@ -451,7 +453,6 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
 
         dateChooser = new JDateChooser(new Date());
         dateChooser.setDateFormatString("dd-MM-yyyy");
-        dateChooser.addPropertyChangeListener("date", this);
         dateChooser.setEnabled(false);
         dateChooser.setPreferredSize(labelSize);
         dateChooser.setFont(labelFont);
@@ -810,6 +811,7 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         billTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         billTable.setCellSelectionEnabled(true);
         billTable.getDefaultEditor(Object.class).addCellEditorListener(this);
+        billTable.putClientProperty("terminateEditOnFocusLost", true);
 
         JTableHeader header = billTable.getTableHeader();
         header.setFont(labelFont);
@@ -823,7 +825,7 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         }
 
         scrollPane = new JScrollPane(billTable);
-        scrollPane.setPreferredSize(new Dimension(1170, 300));
+        scrollPane.setPreferredSize(new Dimension(1170, 320));
         scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         scrollPane.getViewport().setBackground(Color.white);
@@ -836,10 +838,6 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
 
     public void editingStopped(ChangeEvent e) {
         calculate();
-    }
-
-    public void propertyChange(PropertyChangeEvent e) {
-        //
     }
 
     public void focusGained(FocusEvent e) {
@@ -892,23 +890,6 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         return id;
     }
 
-    private long getProductId(int itemCode) {
-        long id = 0;
-        try {
-            String query = "select id from products where p_id = ?";
-            PreparedStatement pst = DBConnection.con.prepareStatement(query);
-            pst.setInt(1, itemCode);
-            ResultSet result = pst.executeQuery();
-            if (result.next()) {
-                id = result.getLong("id");
-            }
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
-        return id;
-
-    }
-
     private boolean saveBillInDB(boolean isNewBill) {
         double billAmt = Double.parseDouble(billAmtField.getText());
         boolean flag = false;
@@ -957,9 +938,9 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
                     pst.close();
                     result.close();
                     for (int i = 0; i < rows; i++) {
-                        int itemCode = Integer.parseInt(billTable.getValueAt(i, 1).toString());
+                        long itemCode = Long.parseLong(billTable.getValueAt(i, 1).toString());
                         long productId = getProductId(itemCode);
-                        int qty = Integer.parseInt(billTable.getValueAt(i, 4).toString());
+                        double qty = Double.parseDouble(billTable.getValueAt(i, 4).toString());
                         double rate = Double.parseDouble(billTable.getValueAt(i, 5).toString());
                         double mrp = Double.parseDouble(billTable.getValueAt(i, 6).toString());
                         double discount = Double.parseDouble(billTable.getValueAt(i, 7).toString());
@@ -972,7 +953,7 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
                         pst.setLong(2, billId);
                         pst.setDouble(3, rate);
                         pst.setDouble(4, mrp);
-                        pst.setInt(5, qty);
+                        pst.setDouble(5, qty);
                         pst.setDouble(6, discount);
                         pst.setLong(7, stockId.contains("-") ? null
                                 : Long.parseLong(stockId));
@@ -986,10 +967,10 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
                             result = pst.executeQuery();
 
                             if (result.next()) {
-                                int availableQty = result.getInt("current_quantity");
+                                double availableQty = result.getDouble("current_quantity");
                                 query = "update inventories set current_quantity = ? where id = ?";
                                 pst = DBConnection.con.prepareStatement(query);
-                                pst.setInt(1, (availableQty - qty));
+                                pst.setDouble(1, (availableQty - qty));
                                 pst.setLong(2, Long.parseLong(stockId));
                                 affectedRows = pst.executeUpdate();
                                 flag = affectedRows > 0;
@@ -1219,17 +1200,6 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
         return pst.executeUpdate() > 0;
     }
 
-    private void updateSrNo() {
-        int rows = tableModel.getRowCount();
-        if (rows > 0) {
-            cnt = 1;
-            for (int row = rows - 1; row >= 0; tableModel.setValueAt(cnt++, row, 0), row--)
-                ;
-        } else {
-            cnt = 1;
-        }
-    }
-
     int cnt = 1;
     boolean isForShowProductDetails, isForDeleteRow;
     CustomerView customerView;
@@ -1263,10 +1233,9 @@ public final class SaleBill extends AbstractButton implements PropertyChangeList
                     if (row >= 0) {
                         tableModel.removeRow(row);
                         calculate();
-                        updateSrNo();
+                        updateSrNo(tableModel, cnt);
                         if (tableModel.getRowCount() == 0) {
                             pBarcodeField.requestFocus();
-                            rowId = 1;
                         }
                     }
                 }

@@ -32,7 +32,6 @@ public final class SubGroup extends AbstractButton {
         setBackground(Color.white);
         setSize(toolkit.getScreenSize());
         setLayout(flowLayoutCenter);
-        setView("SubGroup");
 
         mainPanel = new JPanel(flowLayoutCenter);
         mainPanel.setBackground(Color.white);

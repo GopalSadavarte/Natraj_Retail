@@ -17,16 +17,16 @@ public abstract class AbstractButton extends JInternalFrame
 
     protected JButton newBtn, cancelBtn, deleteBtn, exitBtn, editBtn, saveBtn, selectBtn;
     protected JPanel buttonPanel;
-    protected JMenuItem currentMenuItem;
-    protected HashMap<String, JInternalFrame> frameTracker;
-    protected HashMap<JInternalFrame, String> frameKeyMap;
+    protected final JMenuItem currentMenuItem;
+    protected final HashMap<String, JInternalFrame> frameTracker;
+    protected final HashMap<JInternalFrame, String> frameKeyMap;
     protected final JDialog dataViewer;
     JLabel searchLabel;
     JPanel dataViewerHeadingPanel, selectBtnPanel;
     protected JTextField searchField;
     JPanel view;
-    String whichView = "Product";
-    JTable mainTable;
+    protected final Integer UPDATE_ACTION = -1, SAVE_ACTION = 1, DELETE_ACTION = 0;
+    protected Integer action = SAVE_ACTION;
 
     public AbstractButton(String title, JMenuItem currentMenu, HashMap<String, JInternalFrame> frameTracker,
             HashMap<JInternalFrame, String> frameKeyMap, final JDialog dialog) {
@@ -39,10 +39,6 @@ public abstract class AbstractButton extends JInternalFrame
         configureDialog();
 
         createButtons();
-    }
-
-    protected void setMainTable(JTable table) {
-        mainTable = table;
     }
 
     private void configureDialog() {
@@ -203,10 +199,6 @@ public abstract class AbstractButton extends JInternalFrame
 
     }
 
-    public void setView(String name) {
-        whichView = name;
-    }
-
     private void performRowSwitch(String key) {
         int row = table.getSelectedRow();
         if (key.equals("Enter")) {
@@ -230,80 +222,47 @@ public abstract class AbstractButton extends JInternalFrame
         Object source = e.getSource();
         String key = KeyEvent.getKeyText(e.getKeyCode());
         if (source.equals(searchField) && view != null) {
-            if (!(view instanceof CustomerView)) {
-                ProductView v;
-                GroupView gv;
-                SubGroupView sgv;
-
-                if (whichView.equals("Product")) {
-                    v = (ProductView) view;
-                    table = v.getTable();
-                }
-
-                if (whichView.equals("Group")) {
-                    gv = (GroupView) view;
-                    table = gv.getTable();
-                }
-
-                if (whichView.equals("SubGroup")) {
-                    sgv = (SubGroupView) view;
-                    table = sgv.getTable();
-                }
-                performRowSwitch(key);
-            }
-
-            if (view instanceof CustomerView) {
-                CustomerView customerView = (CustomerView) view;
-                table = customerView.getTable();
-                performRowSwitch(key);
-            }
+            TableExporter tableExporter = (TableExporter) view;
+            table = tableExporter.getTable();
+            performRowSwitch(key);
         }
     }
 
     private void filter() {
-        if (!(view instanceof CustomerView)) {
-            ProductView v = null;
-            GroupView gv = null;
-            SubGroupView sgv = null;
-            String value = searchField.getText().toUpperCase().trim();
-            if (whichView.equals("Product")) {
-                v = (ProductView) view;
-                table = v.getTable();
-            }
-
-            if (whichView.equals("Group")) {
-                gv = (GroupView) view;
-                table = gv.getTable();
-            }
-
-            if (whichView.equals("SubGroup")) {
-                sgv = (SubGroupView) view;
-                table = sgv.getTable();
-            }
-            DefaultTableModel model = (DefaultTableModel) table.getModel();
-            model.setRowCount(0);
-
-            if (whichView.equals("Product")) {
-                v.setTableData(value);
-            }
-
-            if (whichView.equals("Group")) {
-                gv.setTableData(value);
-            }
-
-            if (whichView.equals("SubGroup")) {
-                sgv.setTableData(value);
-            }
-        } else {
-            CustomerView customerView = (CustomerView) view;
-            String searchValue = searchField.getText().toUpperCase().trim();
-            table = customerView.getTable();
-            DefaultTableModel model = customerView.getTableModel();
-            model.setRowCount(0);
-            customerView.setTableData(searchValue);
-        }
+        String value = searchField.getText().toUpperCase().trim();
+        TableExporter tableExporter = (TableExporter) view;
+        table = tableExporter.getTable();
+        tableExporter.setTableData(value);
         if (table.getRowCount() > 0)
             table.setRowSelectionInterval(0, 0);
+    }
+
+    protected long getProductId(long itemCode) {
+        long id = 0;
+        try {
+            String query = "select id from products where p_id = ?";
+            PreparedStatement pst = DBConnection.con.prepareStatement(query);
+            pst.setLong(1, itemCode);
+            ResultSet result = pst.executeQuery();
+            if (result.next()) {
+                id = result.getLong("id");
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+        return id;
+
+    }
+
+    protected void updateSrNo(DefaultTableModel tableModel, int cnt) {
+        int rows = tableModel.getRowCount();
+        if (rows > 0) {
+            cnt = 1;
+            for (int row = rows - 1; row >= 0; tableModel.setValueAt(cnt++, row, 0), row--)
+                ;
+        } else {
+            cnt = 1;
+        }
     }
 
     public void insertUpdate(DocumentEvent e) {

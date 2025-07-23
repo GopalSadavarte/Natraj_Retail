@@ -19,7 +19,7 @@ import com.app.components.utilities.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
-import java.util.function.*;
+import java.util.function.Supplier;
 
 import javax.swing.*;
 import javax.swing.event.*;
@@ -45,6 +45,7 @@ public class MDI extends Navbar {
             } else {
                 String key = frameKeyMap.get(frame);
                 frameTracker.remove(key);
+                frame.dispose();
             }
         }
     };
@@ -143,39 +144,29 @@ public class MDI extends Navbar {
         });
     }
 
-    JMenuItem source = null;
-
     private void setSupplier() {
-        source = sources.get(
-                "Purchase Entry Ctrl+P");
-        supplier.put("Purchase Entry Ctrl+P", () -> new PurchaseEntry(source, frameTracker, frameKeyMap, dialogBox));
+        supplier.put("Purchase Entry Ctrl+P", () -> new PurchaseEntry(sources.get(
+                "Purchase Entry Ctrl+P"), frameTracker, frameKeyMap, dialogBox));
 
-        source = sources.get(
-                "Purchase Return Ctrl+Alt+P");
         supplier.put(
-                "Purchase Return Ctrl+Alt+P", () -> new PurchaseReturn(source, frameTracker, frameKeyMap, dialogBox));
-        source = sources.get(
-                "Product Alt+I");
+                "Purchase Return Ctrl+Alt+P", () -> new PurchaseReturn(sources.get(
+                        "Purchase Return Ctrl+Alt+P"), frameTracker, frameKeyMap, dialogBox));
 
-        supplier.put("Product Alt+I", () -> new Product(source, frameTracker, frameKeyMap, dialogBox));
+        supplier.put("Product Alt+I", () -> new Product(sources.get(
+                "Product Alt+I"), frameTracker, frameKeyMap, dialogBox));
 
-        source = sources.get("Group");
-        supplier.put("Group", () -> new Group(source, frameTracker, frameKeyMap, dialogBox));
+        supplier.put("Group", () -> new Group(sources.get("Group"), frameTracker, frameKeyMap, dialogBox));
 
-        source = sources.get("Sub Group");
-        supplier.put("Sub Group", () -> new SubGroup(source, frameTracker, frameKeyMap, dialogBox));
-        source = sources.get(
-                "Sale Ctrl+S");
-        supplier.put("Sale Ctrl+S", () -> new SaleBill(source, frameTracker, frameKeyMap, dialogBox));
+        supplier.put("Sub Group", () -> new SubGroup(sources.get("Sub Group"), frameTracker, frameKeyMap, dialogBox));
+        supplier.put("Sale Ctrl+S", () -> new SaleBill(sources.get(
+                "Sale Ctrl+S"), frameTracker, frameKeyMap, dialogBox));
 
-        source = sources.get(
-                "Sales Return Ctrl+Alt+S");
         supplier.put(
-                "Sales Return Ctrl+Alt+S", () -> new SalesReturnEntry(source, frameTracker, frameKeyMap, dialogBox));
+                "Sales Return Ctrl+Alt+S", () -> new SalesReturnEntry(sources.get(
+                        "Sales Return Ctrl+Alt+S"), frameTracker, frameKeyMap, dialogBox));
 
-        source = sources.get(
-                "Expiry Entry Ctrl+E");
-        supplier.put("Expiry Entry Ctrl+E", () -> new ExpiryEntry(source, frameTracker, frameKeyMap, dialogBox));
+        supplier.put("Expiry Entry Ctrl+E", () -> new ExpiryEntry(sources.get(
+                "Expiry Entry Ctrl+E"), frameTracker, frameKeyMap, dialogBox));
 
         supplier.put("Near Expiry", () -> new NearExpiry());
         supplier.put("Purchase Daily", () -> new DailyPurchaseReport());
@@ -253,6 +244,7 @@ public class MDI extends Navbar {
             }
             frame.setSelected(true);
         } catch (Exception exc) {
+            exc.printStackTrace();
             System.out.println(exc.getMessage() + " at MDI.java 422");
         }
     }

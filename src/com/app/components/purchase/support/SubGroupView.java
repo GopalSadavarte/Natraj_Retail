@@ -8,10 +8,10 @@ import java.awt.*;
 import java.awt.event.*;
 import java.sql.*;
 
-public class SubGroupView extends JPanel implements AppConstants, Validation {
+public class SubGroupView extends JPanel implements AppConstants, TableExporter {
 
   final JTable table;
-  public DefaultTableModel tableModel;
+  final DefaultTableModel tableModel;
   TableRowSorter<TableModel> sorter;
   public final JScrollPane scrollPane;
 
@@ -61,6 +61,7 @@ public class SubGroupView extends JPanel implements AppConstants, Validation {
     try {
       String query = "";
       ResultSet result;
+      tableModel.setRowCount(0);
       if (searchValue == null || searchValue.isBlank()) {
         query = "select * from groups,sub_groups where groups.id = sub_groups.group_id";
         result = DBConnection.executeQuery(query);
@@ -74,7 +75,7 @@ public class SubGroupView extends JPanel implements AppConstants, Validation {
       while (result.next()) {
         tableModel.addRow(new Object[] {
             srNo++,
-            result.getInt("id"),
+            result.getLong("id"),
             result.getString("sub_group_name"),
             result.getString("g_name")
         });

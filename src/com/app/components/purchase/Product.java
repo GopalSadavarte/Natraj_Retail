@@ -38,7 +38,6 @@ public final class Product extends AbstractButton {
         setBackground(Color.white);
         setSize(Toolkit.getDefaultToolkit().getScreenSize());
         setLayout(flowLayoutCenter);
-        setView("Product");
 
         mainPanel = new JPanel(flowLayoutCenter);
         mainPanel.setBorder(BorderFactory.createLineBorder(borderColor));

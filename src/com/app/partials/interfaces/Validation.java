@@ -12,7 +12,7 @@ public interface Validation extends Regex {
         return true;
     }
 
-    default boolean isBarcodeValid(String barcode){
+    default boolean isBarcodeValid(String barcode) {
         if (barcode.trim().isBlank()) {
             return false;
         }

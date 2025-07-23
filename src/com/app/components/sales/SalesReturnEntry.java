@@ -300,7 +300,7 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
     public SalesReturnEntry(JMenuItem currentMenu, HashMap<String, JInternalFrame> frameTracker,
             HashMap<JInternalFrame, String> frameKeyMap, final JDialog dialog) {
 
-        super("Bill Information", currentMenu, frameTracker, frameKeyMap, dialog);
+        super("Sales Return", currentMenu, frameTracker, frameKeyMap, dialog);
         setBackground(Color.white);
         setLayout(new FlowLayout(FlowLayout.LEFT, 10, 10));
         setSize(toolkit.getScreenSize());
@@ -893,23 +893,6 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
         return id;
     }
 
-    private long getProductId(int itemCode) {
-        long id = 0;
-        try {
-            String query = "select id from products where p_id = ?";
-            PreparedStatement pst = DBConnection.con.prepareStatement(query);
-            pst.setInt(1, itemCode);
-            ResultSet result = pst.executeQuery();
-            if (result.next()) {
-                id = result.getLong("id");
-            }
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
-        return id;
-
-    }
-
     public void actionPerformed(ActionEvent e) {
 
         Object source = e.getSource();
@@ -1136,17 +1119,6 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
 
     }
 
-    private void updateSrNo() {
-        int rows = tableModel.getRowCount();
-        if (rows > 0) {
-            cnt = 1;
-            for (int row = rows - 1; row >= 0; tableModel.setValueAt(cnt++, row, 0), row--)
-                ;
-        } else {
-            cnt = 1;
-        }
-    }
-
     int cnt = 1;
     boolean isForShowProductDetails, isForDeleteRow;
     HashMap<Integer, String> rowStockIdMap = new HashMap<>();
@@ -1181,7 +1153,7 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
                         rowStockIdMap.remove(tableModel.getValueAt(row, 13));
                         tableModel.removeRow(row);
                         calculate();
-                        updateSrNo();
+                        updateSrNo(tableModel, cnt);
                         if (tableModel.getRowCount() == 0) {
                             pBarcodeField.requestFocus();
                             rowId = 1;
