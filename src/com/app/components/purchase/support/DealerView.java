@@ -5,9 +5,11 @@ import java.sql.ResultSet;
 import java.awt.*;
 import java.awt.event.*;
 
+import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
@@ -20,7 +22,7 @@ import com.app.config.DBConnection;
 import com.app.partials.interfaces.AppConstants;
 import com.app.partials.interfaces.TableExporter;
 
-public class DealerView extends JPanel implements AppConstants ,TableExporter{
+public class DealerView extends JPanel implements AppConstants, TableExporter {
     final JTable table;
     final DefaultTableModel tableModel;
     TableRowSorter<TableModel> sorter;
@@ -54,7 +56,9 @@ public class DealerView extends JPanel implements AppConstants ,TableExporter{
         table.setFont(labelFont);
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.addKeyListener(listener);
-        table.setPreferredScrollableViewportSize(new Dimension(900,350));
+        table.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
+                .put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "none");
+        table.setPreferredScrollableViewportSize(new Dimension(900, 350));
         table.setRowHeight(30);
         if (table.getRowCount() > 0)
             table.setRowSelectionInterval(0, 0);

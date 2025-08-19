@@ -15,10 +15,10 @@ public class KeyListenerButtonSwitch extends KeyAdapter {
     public void keyPressed(KeyEvent e) {
         String key = KeyEvent.getKeyText(e.getKeyCode());
         JButton btn = (JButton) e.getSource();
-        if (key.equals("Up") || key.equals("Left")) {
+        if ((key.equals("Up") || key.equals("Left")) && prevTarget.isEnabled()) {
             prevTarget.requestFocus();
         }
-        if (key.equals("Down") || key.equals("Right")) {
+        if ((key.equals("Down") || key.equals("Right")) && nextTarget.isEnabled()) {
             nextTarget.requestFocus();
         }
 

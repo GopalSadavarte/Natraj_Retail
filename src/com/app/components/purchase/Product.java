@@ -22,8 +22,7 @@ public final class Product extends AbstractButton {
             itemWholeQtyField, itemDiscountField, defaultStockField;
     JButton itemImagePickerBt;
     JComboBox<String> itemGroups, itemSubGroups, discountOns;
-    final Integer DELETE_ACTION = -1, UPDATE_ACTION = 0, SAVE_ACTION = 1;
-    Integer action = SAVE_ACTION, productIdForUpdate = 0;
+    Integer productIdForUpdate = 0;
     boolean isUpdateClicked = false;
     JFileChooser fileChooser;
     ProductView view;
@@ -337,7 +336,7 @@ public final class Product extends AbstractButton {
                 itemCodeField.setText("1");
 
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             System.out.println(e.getMessage() + " at Product.java ");
         }
     }
@@ -350,23 +349,8 @@ public final class Product extends AbstractButton {
         ((JComponent) e.getSource()).setBackground(lemonYellow);
     }
 
-    public void keyTyped(KeyEvent e) {
-        String key = KeyEvent.getKeyText(e.getKeyCode());
-        Object source = e.getSource();
-        if (source.equals(itemCodeField)) {
-            if (key.equals("Enter")) {
-                try {
-                    int id = Integer.parseInt(itemCodeField.getText().trim());
-                    showProductDetails(id);
-                } catch (Exception exc) {
-                    JOptionPane.showMessageDialog(null, "please! put a valid id..!", "Error",
-                            JOptionPane.ERROR_MESSAGE);
-                }
-            }
-        }
-    }
-
-    public void keyReleased(KeyEvent e) {
+    public void keyPressed(KeyEvent e) {
+        super.keyPressed(e);
         String key = KeyEvent.getKeyText(e.getKeyCode());
         Object source = e.getSource();
         if (source.equals(itemCodeField)) {
@@ -374,6 +358,15 @@ public final class Product extends AbstractButton {
                 view = new ProductView(this);
                 view.getScrollPane().setPreferredSize(new Dimension(800, 350));
                 createViewer(view);
+            }
+            if (key.equals("Enter")) {
+                try {
+                    int id = Integer.parseInt(itemCodeField.getText().trim());
+                    showProductDetails(id);
+                } catch (Exception exc) {
+                    JOptionPane.showMessageDialog(this, "please! put a valid id..!", "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                }
             }
         }
     }
@@ -414,13 +407,13 @@ public final class Product extends AbstractButton {
                 defaultStockField.setEnabled(!result.next());
                 action = isUpdateClicked ? UPDATE_ACTION : DELETE_ACTION;
             } else {
-                JOptionPane.showMessageDialog(null, "Product not found,please check item code!", "Error",
+                JOptionPane.showMessageDialog(this, "Product not found,please check item code!", "Error",
                         JOptionPane.ERROR_MESSAGE);
             }
 
         } catch (Exception exc) {
             System.out.println(exc.getMessage() + " at Product.java 397");
-            JOptionPane.showMessageDialog(null, exc.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, exc.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -510,7 +503,7 @@ public final class Product extends AbstractButton {
                         }
 
                         if (flag == 0 && !barcode.matches(INTEGER_VAL_PATTERN)) {
-                            JOptionPane.showMessageDialog(null, "put a valid barcode!!", "Error",
+                            JOptionPane.showMessageDialog(this, "put a valid barcode!!", "Error",
                                     JOptionPane.ERROR_MESSAGE);
                             return;
                         }
@@ -547,10 +540,10 @@ public final class Product extends AbstractButton {
                             }
                             reCreate();
                         } else {
-                            JOptionPane.showMessageDialog(null, "failed to add! check details");
+                            JOptionPane.showMessageDialog(this, "failed to add! check details");
                         }
                     } else {
-                        boolean res = JOptionPane.showConfirmDialog(null, "Are you sure to update this information?",
+                        boolean res = JOptionPane.showConfirmDialog(this, "Are you sure to update this information?",
                                 "Confirmation", JOptionPane.OK_CANCEL_OPTION) == 0;
                         if (res) {
                             String query = "update products set product_name = ?,group_id = ?,sub_group_id = ?,sale_rate = ?,product_mrp = ?,discount = ?,discount_on = ?,wholesale_rate = ?,wholesale_quantity = ?,product_image = ? where id = ?";
@@ -597,10 +590,10 @@ public final class Product extends AbstractButton {
                                         }
                                     }
                                 }
-                                JOptionPane.showMessageDialog(null, "Record Updated!!");
+                                JOptionPane.showMessageDialog(this, "Record Updated!!");
                                 reCreate();
                             } else {
-                                JOptionPane.showMessageDialog(null, "Update Failed!!", "Error",
+                                JOptionPane.showMessageDialog(this, "Update Failed!!", "Error",
                                         JOptionPane.ERROR_MESSAGE);
                             }
                         } else {
@@ -610,26 +603,26 @@ public final class Product extends AbstractButton {
                 } catch (Exception exc) {
                     System.out.println(exc.getMessage());
                     exc.printStackTrace();
-                    JOptionPane.showMessageDialog(null, exc.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(this, exc.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
                 }
             }
             if (action.equals(DELETE_ACTION)) {
                 try {
-                    boolean res = JOptionPane.showConfirmDialog(null, "Are you sure to remove this record?") == 0;
+                    boolean res = JOptionPane.showConfirmDialog(this, "Are you sure to remove this record?") == 0;
                     if (res) {
                         String query = "delete from products where id = ?";
                         PreparedStatement pst = DBConnection.con.prepareStatement(query);
                         pst.setInt(1, productIdForUpdate);
                         int affectedRows = pst.executeUpdate();
                         if (affectedRows > 0) {
-                            JOptionPane.showMessageDialog(null, "Record removed successfully!!");
+                            JOptionPane.showMessageDialog(this, "Record removed successfully!!");
                             reCreate();
                         } else {
-                            JOptionPane.showMessageDialog(null, "Record cannot removed,try again!!");
+                            JOptionPane.showMessageDialog(this, "Record cannot removed,try again!!");
                         }
                     }
                 } catch (Exception exc) {
-                    JOptionPane.showMessageDialog(null, exc.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(this, exc.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
                 }
             }
 

@@ -15,7 +15,7 @@ public class GroupView extends JPanel implements AppConstants,TableExporter {
   TableRowSorter<TableModel> sorter;
   final JScrollPane scrollPane;
 
-  public GroupView(JInternalFrame frame) {
+  public GroupView(KeyListener listener) {
     setLayout(new FlowLayout());
     setBackground(Color.white);
 
@@ -39,7 +39,7 @@ public class GroupView extends JPanel implements AppConstants,TableExporter {
     table.setSelectionForeground(Color.white);
     table.setRowHeight(30);
     table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-    table.addKeyListener((KeyListener) frame);
+    table.addKeyListener(listener);
     if (table.getRowCount() > 0)
       table.setRowSelectionInterval(0, 0);
 

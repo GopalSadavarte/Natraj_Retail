@@ -6,4 +6,6 @@ public interface TableExporter {
     JTable getTable();
 
     void setTableData(String value);
+
+    JScrollPane getScrollPane();
 }

@@ -114,7 +114,7 @@ public final class SubGroup extends AbstractButton {
         subGroupNameField.addKeyListener(new CustomKeyListener(groupNames));
 
         add(mainPanel);
-        setLastId("sub_groups", subGroupIdField);
+        subGroupIdField.setText(getLastId("sub_groups","id"));
         setGroups();
         setVisible(true);
     }
@@ -243,7 +243,8 @@ public final class SubGroup extends AbstractButton {
         }
     }
 
-    public void keyReleased(KeyEvent e) {
+    public void keyPressed(KeyEvent e) {
+        super.keyPressed(e);
         String key = KeyEvent.getKeyText(e.getKeyCode());
         Object source = e.getSource();
         if (source.equals(subGroupIdField)) {
@@ -270,7 +271,7 @@ public final class SubGroup extends AbstractButton {
 
             if (key.equals("F1")) {
                 view = new SubGroupView(this);
-                view.scrollPane.setPreferredSize(new Dimension(800, 350));
+                view.getScrollPane().setPreferredSize(new Dimension(800, 350));
                 createViewer(view);
             }
         }

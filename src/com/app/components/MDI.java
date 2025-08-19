@@ -20,11 +20,10 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
 import java.util.function.Supplier;
-
 import javax.swing.*;
 import javax.swing.event.*;
 
-public class MDI extends Navbar {
+public final class MDI extends Navbar {
 
     JInternalFrame frame;
     final HashMap<String, Supplier<JInternalFrame>> supplier = new HashMap<>();
@@ -34,19 +33,7 @@ public class MDI extends Navbar {
     final InternalFrameAdapter internalFrameListener = new InternalFrameAdapter() {
         public void internalFrameClosing(InternalFrameEvent e) {
             JInternalFrame frame = e.getInternalFrame();
-            if (frame instanceof SaleBill) {
-                boolean res = JOptionPane.showConfirmDialog(MDI.this, "Are you sure to exit?", "Confirmation",
-                        JOptionPane.OK_CANCEL_OPTION) == 0;
-                if (res) {
-                    String key = frameKeyMap.get(frame);
-                    frameTracker.remove(key);
-                    frame.dispose();
-                }
-            } else {
-                String key = frameKeyMap.get(frame);
-                frameTracker.remove(key);
-                frame.dispose();
-            }
+            closeFrame(frame);
         }
     };
     ImageIcon icon = new ImageIcon(MDI.class.getResource("logo.jpg"));
@@ -66,46 +53,53 @@ public class MDI extends Navbar {
         KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(keyEvent -> {
             String key = KeyEvent.getKeyText(keyEvent.getKeyCode());
             String modifier = InputEvent.getModifiersExText(keyEvent.getModifiersEx());
-            if (keyEvent.getID() == KeyEvent.KEY_PRESSED) {
+            if (keyEvent.getID() == KeyEvent.KEY_PRESSED && OPTION_PANE_COUNT == 0) {
                 frame = desktop.getSelectedFrame();
                 if (key.toLowerCase().equals("p") && modifier.toLowerCase().equals("ctrl")) {
+                    dialogBox.setVisible(false);
                     ActionEvent event = new ActionEvent(sources.get(
                             "Purchase Entry Ctrl+P"), WIDTH, "Purchase Entry Ctrl+P");
                     actionPerformed(event);
                     return true;
                 }
                 if (key.toLowerCase().equals("p") && modifier.toLowerCase().equals("ctrl+alt")) {
+                    dialogBox.setVisible(false);
                     ActionEvent event = new ActionEvent(sources.get(
                             "Purchase Return Ctrl+Alt+P"), WIDTH, "Purchase Return Ctrl+Alt+P");
                     actionPerformed(event);
                     return true;
                 }
                 if (key.toLowerCase().equals("i") && modifier.toLowerCase().equals("alt")) {
+                    dialogBox.setVisible(false);
                     ActionEvent event = new ActionEvent(sources.get(
                             "Product Alt+I"), 2, "Product Alt+I");
                     actionPerformed(event);
                     return true;
                 }
                 if (key.toLowerCase().equals("s") && modifier.toLowerCase().equals("ctrl")) {
+                    dialogBox.setVisible(false);
                     ActionEvent event = new ActionEvent(sources.get(
                             "Sale Ctrl+S"), 2, "Sale Ctrl+S");
                     actionPerformed(event);
                     return true;
                 }
                 if (key.toLowerCase().equals("s") && modifier.toLowerCase().equals("ctrl+alt")) {
+                    dialogBox.setVisible(false);
                     ActionEvent event = new ActionEvent(sources.get(
                             "Sales Return Ctrl+Alt+S"), 2, "Sales Return Ctrl+Alt+S");
                     actionPerformed(event);
                     return true;
                 }
                 if (key.toLowerCase().equals("e") && modifier.toLowerCase().equals("ctrl")) {
+                    dialogBox.setVisible(false);
                     ActionEvent event = new ActionEvent(sources.get(
                             "Expiry Entry Ctrl+E"), 2, "Expiry Entry Ctrl+E");
                     actionPerformed(event);
                     return true;
                 }
 
-                if ((key.equals("F5") || key.equals("F7")) && frame instanceof SaleBill && OPTION_PANE_COUNT == 0) {
+                if ((key.equals("F5") || key.equals("F7")) && frame instanceof SaleBill) {
+                    dialogBox.setVisible(false);
                     SaleBill bill = (SaleBill) frame;
                     OPTION_PANE_COUNT = 1;
                     if (key.equals("F5"))
@@ -122,26 +116,32 @@ public class MDI extends Navbar {
                         dialogBox.setVisible(false);
                         return true;
                     }
-                    if (frame instanceof SaleBill && OPTION_PANE_COUNT == 0) {
-                        OPTION_PANE_COUNT = 1;
-                        boolean res = JOptionPane.showConfirmDialog(null, "Are you sure to exit?", "Confirmation",
-                                JOptionPane.OK_CANCEL_OPTION) == 0;
-                        if (res) {
-                            frameTracker.remove(frameKeyMap.get(frame));
-                            frame.dispose();
-                            OPTION_PANE_COUNT = 0;
-                        }
-                        if (!res)
-                            OPTION_PANE_COUNT = 0;
-                    } else if (OPTION_PANE_COUNT == 0) {
-                        frameTracker.remove(frameKeyMap.get(frame));
-                        frame.dispose();
-                    }
+                    closeFrame(frame);
                     return true;
                 }
             }
             return false;
         });
+    }
+
+    private void closeFrame(JInternalFrame frame) {
+        if ((frame instanceof SaleBill || frame instanceof PurchaseEntry || frame instanceof PurchaseReturn
+                || frame instanceof SalesReturnEntry || frame instanceof ExpiryEntry)
+                && OPTION_PANE_COUNT == 0) {
+            OPTION_PANE_COUNT = 1;
+            boolean res = JOptionPane.showConfirmDialog(null, "Are you sure to exit?", "Confirmation",
+                    JOptionPane.OK_CANCEL_OPTION) == 0;
+            if (res) {
+                frameTracker.remove(frameKeyMap.get(frame));
+                frame.dispose();
+                OPTION_PANE_COUNT = 0;
+            }
+            if (!res)
+                OPTION_PANE_COUNT = 0;
+        } else if (OPTION_PANE_COUNT == 0) {
+            frameTracker.remove(frameKeyMap.get(frame));
+            frame.dispose();
+        }
     }
 
     private void setSupplier() {
@@ -196,7 +196,8 @@ public class MDI extends Navbar {
         supplier.put("Quotation", () -> new Quotation(dialogBox));
         supplier.put("Debit Note", () -> new DebitNote());
         supplier.put("Credit Note", () -> new CreditNoteList());
-        supplier.put("Change Password", () -> new ChangePassword());
+        supplier.put("Supplier Master", () -> new SupplierMaster());
+        supplier.put("Change Password", () -> new ChangePassword(frameTracker, frameKeyMap));
         supplier.put("Stock Analysis Daily", () -> new DailyStockChart());
         supplier.put("Stock Analysis Monthly", () -> new MonthlyStockChart());
         supplier.put("Stock Analysis Yearly", () -> new YearlyStockChart());
@@ -232,6 +233,7 @@ public class MDI extends Navbar {
             }
 
             frame = supplier.get(key).get();
+
             if (!frameTracker.containsKey(key) || frame instanceof SaleBill) {
                 desktop.add(frame);
                 frameTracker.put(key, frame);

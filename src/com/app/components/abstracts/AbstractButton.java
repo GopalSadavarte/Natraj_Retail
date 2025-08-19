@@ -4,6 +4,8 @@ import java.awt.*;
 import java.awt.event.*;
 import java.sql.*;
 import java.util.*;
+import java.util.Date;
+
 import javax.swing.*;
 import javax.swing.event.*;
 import javax.swing.table.*;
@@ -120,22 +122,6 @@ public abstract class AbstractButton extends JInternalFrame
         buttonPanel.add(exitBtn);
     }
 
-    protected void setLastId(String tableName, JTextField textField) {
-        try {
-            String query = "select * from " + tableName + " order by id desc limit 1";
-            Statement st = DBConnection.con.createStatement();
-            ResultSet result = st.executeQuery(query);
-            if (result.next()) {
-                int id = result.getInt("id");
-                textField.setText("" + (id + 1));
-            } else {
-                textField.setText("1");
-            }
-        } catch (Exception e) {
-            System.out.println(e.getMessage() + " at AbstractButton.java 93");
-        }
-    }
-
     protected void reCreate() {
         frameTracker.remove(frameKeyMap.get(this));
         dispose();
@@ -191,12 +177,31 @@ public abstract class AbstractButton extends JInternalFrame
         dataViewer.setVisible(true);
     }
 
+    protected void moveRow(DefaultTableModel model, int from, int to) {
+        Object[] values = new Object[model.getColumnCount()];
+        for (int i = 0; i < values.length; i++)
+            values[i] = model.getValueAt(from, i);
+        model.removeRow(from);
+        model.insertRow(to, values);
+    }
+
     public void keyTyped(KeyEvent e) {
 
     }
 
     public void keyReleased(KeyEvent e) {
 
+    }
+
+    protected int getStock(long pId) throws Exception {
+        PreparedStatement pst = DBConnection.con.prepareStatement(
+                "select sum(current_quantity) as qty from inventories where product_id = ?");
+        pst.setLong(1, pId);
+        ResultSet result = pst.executeQuery();
+        if (result.next()) {
+            return result.getInt("qty");
+        }
+        return 0;
     }
 
     private void performRowSwitch(String key) {
@@ -254,15 +259,28 @@ public abstract class AbstractButton extends JInternalFrame
 
     }
 
-    protected void updateSrNo(DefaultTableModel tableModel, int cnt) {
-        int rows = tableModel.getRowCount();
+    protected Integer updateSrNo(DefaultTableModel tableModel) {
+        int rows = tableModel.getRowCount(), cnt = 1;
         if (rows > 0) {
-            cnt = 1;
             for (int row = rows - 1; row >= 0; tableModel.setValueAt(cnt++, row, 0), row--)
                 ;
-        } else {
-            cnt = 1;
         }
+        return cnt;
+    }
+
+    protected String getLastId(String sqlTable, String sqlColumn) {
+        String id = "1";
+        try {
+            String query = "select " + sqlColumn + " from " + sqlTable + " where date(created_at) = ? order by "
+                    + sqlColumn + " desc limit 1";
+            PreparedStatement pst = DBConnection.con.prepareStatement(query);
+            pst.setDate(1, new java.sql.Date(new Date().getTime()));
+            ResultSet result = pst.executeQuery();
+            id = result.next() ? "" + (result.getInt(sqlColumn) + 1) : "1";
+        } catch (Exception e) {
+            System.out.println(e.getMessage() + " at AbstractButton.getLastId()");
+        }
+        return id;
     }
 
     public void insertUpdate(DocumentEvent e) {

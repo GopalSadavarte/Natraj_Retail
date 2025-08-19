@@ -15,7 +15,7 @@ public abstract class Navbar extends JFrame implements ActionListener, AppConsta
             { "Purchase Entry Ctrl+P", "Purchase Return Ctrl+Alt+P", "Product Alt+I", "Group", "Sub Group" },
             { "Sale Ctrl+S", "Sales Return Ctrl+Alt+S" }, { "Expiry Entry Ctrl+E", "Near Expiry" },
             { "Purchase", "Sale", "Stock", "Expiry", "Sales Return", "Purchase Return" },
-            { "Quotation", "Debit Note", "Credit Note" },
+            { "Quotation", "Debit Note", "Credit Note","Supplier Master" },
             { "Sale Analysis", "Purchase Analysis", "Stock Analysis", "Expiry Analysis" }, {
                     "Change Password"
             } };

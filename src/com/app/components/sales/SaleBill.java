@@ -84,9 +84,11 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
                         taxVal, 0, stockId == null ? "-" : stockId
                 });
             } else {
-                tableModel.setValueAt(Integer.parseInt(tableModel.getValueAt(row, 4).toString()) + qtyVal,
+                tableModel.setValueAt(Double.parseDouble(tableModel.getValueAt(row, 4).toString()) + qtyVal,
                         row,
                         4);
+                        moveRow(tableModel,row,0);
+                        cnt = updateSrNo(tableModel);
             }
 
             calculate();
@@ -138,13 +140,14 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
             }
 
             String query = isForShowProductDetails ? "select * from products where p_id = ? limit 1"
-                    : "select * from products where barcode_no = ? limit 1";
+                    : "select * from products where barcode_no = ? or p_id = ? limit 1";
 
             PreparedStatement pst = DBConnection.con.prepareStatement(query);
             if (isForShowProductDetails) {
                 pst.setLong(1, Long.parseLong(pIdField.getText().trim()));
             } else {
-                pst.setString(1, "00" + barcode);
+                pst.setString(1, barcode);
+                pst.setLong(2, Long.parseLong(barcode));
             }
 
             ResultSet result = pst.executeQuery();
@@ -181,17 +184,6 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
         } catch (Exception exc) {
             System.out.println(exc.getLocalizedMessage() + " at SaleBill.showProductDetails()");
         }
-    }
-
-    private int getStock(long pId) throws Exception {
-        PreparedStatement pst = DBConnection.con.prepareStatement(
-                "select sum(current_quantity) as qty from inventories where product_id = ?");
-        pst.setLong(1, pId);
-        ResultSet result = pst.executeQuery();
-        if (result.next()) {
-            return result.getInt("qty");
-        }
-        return 0;
     }
 
     private int checkRecordExist(String pId, double rate, double mrp) {
@@ -377,7 +369,7 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
         pQtyField.addKeyListener(new CustomKeyListener(pRateField));
         pRateField.addKeyListener(new CustomKeyListener(pMRPField));
 
-        billNoField.setText(getLastId());
+        billNoField.setText(getLastId("bills", "day_wise_bill_no"));
         setBottomFields();
         setVisible(true);
         SwingUtilities.invokeLater(() -> {
@@ -410,20 +402,6 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
-    }
-
-    private String getLastId() {
-        String id = "1";
-        try {
-            String query = "select day_wise_bill_no from bills where date(created_at) = ? order by day_wise_bill_no desc limit 1";
-            PreparedStatement pst = DBConnection.con.prepareStatement(query);
-            pst.setDate(1, new java.sql.Date(new Date().getTime()));
-            ResultSet result = pst.executeQuery();
-            id = result.next() ? "" + (result.getInt("day_wise_bill_no") + 1) : "1";
-        } catch (Exception e) {
-            System.out.println(e.getMessage() + " at SaleBill.getLastId()");
-        }
-        return id;
     }
 
     private void allocateToTopPanel() {
@@ -893,7 +871,7 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
     private boolean saveBillInDB(boolean isNewBill) {
         double billAmt = Double.parseDouble(billAmtField.getText());
         boolean flag = false;
-        int billNo = Integer.parseInt(getLastId());
+        int billNo = Integer.parseInt(getLastId("bills", "day_wise_bill_no"));
         if (billAmt != 0) {
             try {
                 int rows = billTable.getRowCount();
@@ -944,10 +922,13 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
                         double rate = Double.parseDouble(billTable.getValueAt(i, 5).toString());
                         double mrp = Double.parseDouble(billTable.getValueAt(i, 6).toString());
                         double discount = Double.parseDouble(billTable.getValueAt(i, 7).toString());
-                        String stockId = billTable.getValueAt(i, 13).toString();
-                        // System.out.println(stockId);
+                        String stockId = billTable.getValueAt(i, 13).toString().trim();
 
-                        query = "insert into sales(product_id,bill_id,new_rate,new_mrp,quantity,discount,inventory_id)values(?,?,?,?,?,?,?)";
+                        query = "insert into sales(product_id,bill_id,new_rate,new_mrp,quantity,discount,inventory_id)values(?,?,?,?,?,?,"
+                                + (stockId
+                                        .contains("-") ? null
+                                                : Long.parseLong(stockId))
+                                + ")";
                         pst = DBConnection.con.prepareStatement(query);
                         pst.setLong(1, productId);
                         pst.setLong(2, billId);
@@ -955,12 +936,10 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
                         pst.setDouble(4, mrp);
                         pst.setDouble(5, qty);
                         pst.setDouble(6, discount);
-                        pst.setLong(7, stockId.contains("-") ? null
-                                : Long.parseLong(stockId));
+
                         affectedRows = pst.executeUpdate();
                         pst.close();
                         if (affectedRows > 0 && !stockId.contains("-")) {
-                            // System.out.println(Long.parseLong(stockId));
                             query = "select current_quantity from inventories where id = ? limit 1";
                             pst = DBConnection.con.prepareStatement(query);
                             pst.setLong(1, Long.parseLong(stockId));
@@ -975,6 +954,8 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
                                 affectedRows = pst.executeUpdate();
                                 flag = affectedRows > 0;
                             }
+                        } else {
+                            flag = true;
                         }
                     }
                 }
@@ -984,6 +965,7 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
                 } catch (Exception exc1) {
                     System.out.println(exc1.getMessage() + " at SaleBill.actionPerformed().save 1030");
                 }
+                exc.printStackTrace();
                 System.out.println(exc.getMessage() + " at SaleBill.actionPerformed().save 1032");
                 JOptionPane.showMessageDialog(this, exc.getMessage(), "Error",
                         JOptionPane.ERROR_MESSAGE);
@@ -1016,7 +998,7 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
                             if (flag) {
                                 newBtn.doClick();
                             } else {
-                                deleteBill(Integer.parseInt(getLastId()));
+                                deleteBill(Integer.parseInt(getLastId("bills", "day_wise_bill_no")));
                                 JOptionPane.showMessageDialog(this, "Something wrong..try again!", "Error",
                                         JOptionPane.ERROR_MESSAGE);
                             }
@@ -1060,7 +1042,7 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
                     if (choseOption == JOptionPane.OK_OPTION) {
                         try {
                             if (recoverStock() && deleteBill(billNoForUpdateOrDelete)) {
-                                newBtn.doClick();
+                                reCreate();
                             } else {
                                 JOptionPane.showMessageDialog(this, "Bill cannot deleted..try again!!");
                             }
@@ -1128,12 +1110,10 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
 
                             custNameField.setText(name);
                             mobileField.setText(contactNo);
-
-                            dataViewer.setVisible(false);
                         } else {
                             customerId = 0;
-                            dataViewer.setVisible(false);
                         }
+                        dataViewer.setVisible(false);
                         pBarcodeField.requestFocus();
                     }
                 } catch (Exception exc) {
@@ -1164,6 +1144,8 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
     private boolean recoverStock() {
         previousBillRecords.forEach(map -> {
             try {
+                if (map.get("stock_id").toString() == null)
+                    return;
                 long stockId = Long.parseLong(map.get("stock_id").toString());
                 long qty = Long.parseLong(map.get("quantity").toString());
 
@@ -1180,17 +1162,15 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
                     pst.setInt(1, current_quantity);
                     pst.setLong(2, stockId);
 
-                    flagToRecordDelete = pst.executeUpdate() > 0;
+                    pst.executeUpdate();
                 }
 
             } catch (Exception exc) {
                 System.out.println(exc.getMessage() + " at SaleBill.recoverStock() 1206");
             }
         });
-        return flagToRecordDelete;
+        return true;
     }
-
-    Boolean flagToRecordDelete = false;
 
     private boolean deleteBill(int billNo) throws Exception {
         String query = "delete from bills where day_wise_bill_no = ? and date(created_at) = ?";
@@ -1205,7 +1185,8 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
     CustomerView customerView;
     java.util.List<HashMap<String, Object>> previousBillRecords;
 
-    public void keyReleased(KeyEvent e) {
+    public void keyPressed(KeyEvent e) {
+        super.keyPressed(e);
         String key = KeyEvent.getKeyText(e.getKeyCode());
         Object source = e.getSource();
 
@@ -1233,7 +1214,7 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
                     if (row >= 0) {
                         tableModel.removeRow(row);
                         calculate();
-                        updateSrNo(tableModel, cnt);
+                        cnt = updateSrNo(tableModel);
                         if (tableModel.getRowCount() == 0) {
                             pBarcodeField.requestFocus();
                         }
@@ -1243,15 +1224,20 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
             }
         }
 
-        if (productView != null && source.equals(productView.getTable()) && key.equals("Enter")) {
+        if (((productView != null && source.equals(productView.getTable()))
+                || (customerView != null && source.equals(customerView.getTable()))) && key.equals("Enter")) {
             selectBtn.doClick();
         }
 
         if (source.equals(paidAmtField) && key.equals("Enter")) {
-            double amt = Double.parseDouble(paidAmtField.getText().trim());
-            double returnAmt = amt - Double.parseDouble(billAmtField.getText().trim());
-            returnAmt = Math.round(returnAmt);
-            returnAmtField.setText(String.format("%.2f", returnAmt));
+            try {
+                double amt = Double.parseDouble(paidAmtField.getText().trim());
+                double returnAmt = amt - Double.parseDouble(billAmtField.getText().trim());
+                returnAmt = Math.round(returnAmt);
+                returnAmtField.setText(String.format("%.2f", returnAmt));
+            } catch (Exception exc) {
+                JOptionPane.showMessageDialog(null, exc.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
         }
 
         if (source.equals(billNoField) && key.equals("Enter")) {
@@ -1278,6 +1264,7 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
                     double rate = result.getDouble("new_rate");
                     double discount = result.getDouble("discount");
                     long stockId = result.getLong("inventory_id");
+                    paymentTypes.setSelectedItem(result.getString("payment_type"));
 
                     HashMap<String, Object> map = new HashMap<>();
                     map.put("p_id", itemCode);
@@ -1303,6 +1290,18 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
                     });
                 }
 
+                pst.close();
+                result.close();
+                query = "select *,sales_returns.day_wise_entry_no as creditNoteId,sales_returns.total_amount as creditNoteAmount from bills,sales_returns where sales_returns.id = bills.sales_return_id and bills.day_wise_bill_no = ? and date(bills.created_at) = ? limit 1";
+                pst = DBConnection.con.prepareStatement(query);
+                pst.setInt(1, billNo);
+                pst.setDate(2, date);
+                result = pst.executeQuery();
+                if (result.next()) {
+                    creditNoteAmtField.setText(result.getString("creditNoteAmount"));
+                    creditNoteIdField.setText(result.getString("creditNoteId"));
+                }
+
                 if (flag == 0) {
                     JOptionPane.showMessageDialog(this, "Bill not found..try again!", "Error",
                             JOptionPane.ERROR_MESSAGE);
@@ -1313,6 +1312,7 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
                 }
                 calculate();
             } catch (Exception exc) {
+                exc.printStackTrace();
                 JOptionPane.showMessageDialog(this, "Invalid bill no..try again!", "Error", JOptionPane.ERROR_MESSAGE);
             }
         }

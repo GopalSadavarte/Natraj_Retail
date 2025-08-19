@@ -23,4 +23,6 @@ public class DBConnection {
         Statement st = con.createStatement();
         return st.executeQuery(query);
     }
+
+    
 }

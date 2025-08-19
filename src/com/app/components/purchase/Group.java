@@ -85,7 +85,7 @@ public final class Group extends AbstractButton {
         mainPanel.add(buttonPanel);
 
         add(mainPanel);
-        setLastId("groups", groupIdField);
+        groupIdField.setText(getLastId("groups", "id"));
         setVisible(true);
     }
 
@@ -238,7 +238,8 @@ public final class Group extends AbstractButton {
         field.setBackground(lemonYellow);
     }
 
-    public void keyReleased(KeyEvent e) {
+    public void keyPressed(KeyEvent e) {
+        super.keyPressed(e);
         String key = KeyEvent.getKeyText(e.getKeyCode());
         Object source = e.getSource();
         if (source.equals(groupIdField)) {

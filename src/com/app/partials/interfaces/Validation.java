@@ -21,4 +21,8 @@ public interface Validation extends Regex {
         }
         return true;
     }
+
+    default boolean isPasswordValid(String password){
+        return true;
+    }
 }

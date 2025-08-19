@@ -89,6 +89,8 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
                 tableModel.setValueAt(Integer.parseInt(tableModel.getValueAt(row, 4).toString()) + qtyVal,
                         row,
                         4);
+                moveRow(tableModel, row, 0);
+                cnt = updateSrNo(tableModel);
             }
 
             calculate();
@@ -271,7 +273,6 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
                 if (d.contains("%"))
                     d = d.replace('%', '\s').trim();
                 double discount = Double.parseDouble(d);
-
                 double dAmt = (rate * discount) / 100;
                 double amt = rate - dAmt;
                 double nAmt = amt * qty;
@@ -336,34 +337,10 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
         buttonPanel.add(printLabel);
         buttonPanel.add(printOptions);
 
-        creditNoteIdLabel = new JLabel("Crd.Note ID");
-        creditNoteIdLabel.setFont(labelFont);
-
-        creditNoteIdField = new JTextField(4);
-        creditNoteIdField.setFont(labelFont);
-        creditNoteIdField.addFocusListener(this);
-        creditNoteIdField.addKeyListener(this);
-        creditNoteIdField.setText("0");
-
-        buttonPanel.add(creditNoteIdLabel);
-        buttonPanel.add(creditNoteIdField);
-
-        creditNoteAmtLabel = new JLabel("Crd.Amt.");
-        creditNoteAmtLabel.setFont(labelFont);
-
-        creditNoteAmtField = new JTextField(4);
-        creditNoteAmtField.setFont(labelFont);
-        creditNoteAmtField.setEnabled(false);
-        creditNoteAmtField.setDisabledTextColor(Color.darkGray);
-        creditNoteAmtField.setText("0");
-
-        buttonPanel.add(creditNoteAmtLabel);
-        buttonPanel.add(creditNoteAmtField);
-
         sidePanel.add(billInfoPanel);
         sidePanel.add(custInfoPanel);
         sidePanel.add(billFormPanel);
-        sidePanel.add(lastScannedItemPanel);
+        // sidePanel.add(lastScannedItemPanel);
         sidePanel.add(scrollPane);
         sidePanel.add(bottomPanel);
 
@@ -375,73 +352,46 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
         pQtyField.addKeyListener(new CustomKeyListener(pRateField));
         pRateField.addKeyListener(new CustomKeyListener(pMRPField));
 
-        String billNo = getLastId();
-        billNoField.setText(billNo);
-        setBottomFields();
+        billNoField.setText(getLastId("day_wise_entry_no", "sales_returns"));
+        // setBottomFields();
         setVisible(true);
         SwingUtilities.invokeLater(() -> {
             pBarcodeField.requestFocus();
         });
     }
 
-    private void setBottomFields() {
-        try {
-            String query = "select total_amount,day_wise_bill_no,sum(quantity) as qty from bills,sales where date(bills.created_at) = ? and bills.id = sales.bill_id group by bill_id,total_amount,day_wise_bill_no order by bill_id desc limit 2";
-            PreparedStatement pst = DBConnection.con.prepareStatement(query);
-            pst.setDate(1, new java.sql.Date(new Date().getTime()));
-            ResultSet result = pst.executeQuery();
-            while (result.next()) {
-                String qty = result.getString("qty");
-                String billNo = result.getString("day_wise_bill_no");
-                String amount = result.getString("total_amount");
-                if (result.getRow() == 1) {
-                    pBillNoField.setText(billNo);
-                    pBillAmtField.setText(amount);
-                    pBillQtyField.setText(qty);
-                } else {
-                    lpBillNoField.setText(billNo);
-                    lpBillAmtField.setText(amount);
-                    lpBillQtyField.setText(qty);
-                }
-            }
-            result.close();
-            pst.close();
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private String getLastId() {
-        String id = "1";
-        try {
-            String query = "select day_wise_bill_no from bills where date(created_at) = ? order by day_wise_bill_no desc limit 1";
-            PreparedStatement pst = DBConnection.con.prepareStatement(query);
-            pst.setDate(1, new java.sql.Date(new Date().getTime()));
-            ResultSet result = pst.executeQuery();
-            id = result.next() ? "" + (result.getInt("day_wise_bill_no") + 1) : "1";
-        } catch (Exception e) {
-            System.out.println(e.getMessage() + " at SaleBill.getLastId()");
-        }
-        return id;
-    }
+    // private void setBottomFields() {
+    // try {
+    // String query = "select total_amount,day_wise_bill_no,sum(quantity) as qty
+    // from bills,sales where date(bills.created_at) = ? and bills.id =
+    // sales.bill_id group by bill_id,total_amount,day_wise_bill_no order by bill_id
+    // desc limit 2";
+    // PreparedStatement pst = DBConnection.con.prepareStatement(query);
+    // pst.setDate(1, new java.sql.Date(new Date().getTime()));
+    // ResultSet result = pst.executeQuery();
+    // while (result.next()) {
+    // String qty = result.getString("qty");
+    // String billNo = result.getString("day_wise_bill_no");
+    // String amount = result.getString("total_amount");
+    // if (result.getRow() == 1) {
+    // pBillNoField.setText(billNo);
+    // pBillAmtField.setText(amount);
+    // pBillQtyField.setText(qty);
+    // } else {
+    // lpBillNoField.setText(billNo);
+    // lpBillAmtField.setText(amount);
+    // lpBillQtyField.setText(qty);
+    // }
+    // }
+    // result.close();
+    // pst.close();
+    // } catch (Exception e) {
+    // JOptionPane.showMessageDialog(this, e.getMessage(), "Error",
+    // JOptionPane.ERROR_MESSAGE);
+    // }
+    // }
 
     private void allocateToTopPanel() {
-        lastScannedItemPanel = new JPanel(flowLayoutLeft);
-        lastScannedItemPanel.setBackground(Color.white);
-        lastScannedItemPanel.setPreferredSize(innerPanelSize);
-
-        lastScannedItemLabel = new JLabel("Last Scanned Item :");
-        lastScannedItemLabel.setForeground(Color.darkGray);
-        lastScannedItemLabel.setFont(labelFont);
-
-        lastScannedItemField = new JTextField(50);
-        lastScannedItemField.setFont(labelFont);
-        lastScannedItemField.setEnabled(false);
-        lastScannedItemField.setText("Item name: NA \tStock : 0");
-        lastScannedItemField.setBackground(lemonYellow);
-
-        lastScannedItemPanel.add(lastScannedItemLabel);
-        lastScannedItemPanel.add(lastScannedItemField);
 
         billInfoPanel = new JPanel(flowLayoutLeft);
         billInfoPanel.setBackground(Color.white);
@@ -492,18 +442,6 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
 
         billInfoPanel.add(billNoLabel);
         billInfoPanel.add(billNoField);
-
-        paymentTypeLabel = new JLabel("Payment Type:");
-        paymentTypeLabel.setFont(labelFont);
-
-        paymentTypes = new JComboBox<String>();
-        paymentTypes.setFont(labelFont);
-        paymentTypes.addItem("Cash");
-        paymentTypes.addItem("Debit/Credit Card");
-        paymentTypes.addItem("UPI/Phone Pay");
-
-        billInfoPanel.add(paymentTypeLabel);
-        billInfoPanel.add(paymentTypes);
 
         custInfoPanel = new JPanel(flowLayoutLeft);
         custInfoPanel.setBackground(Color.white);
@@ -617,84 +555,6 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
         bottomPanel.setBackground(Color.white);
         bottomPanel.setPreferredSize(new Dimension(1330 - 160, 80));
 
-        lpBillNoLabel = new JLabel("L.P.No.");
-        lpBillNoLabel.setFont(labelFont);
-
-        lpBillNoField = new JTextField(4);
-        lpBillNoField.setText("0");
-        lpBillNoField.setEnabled(false);
-        lpBillNoField.setFont(smallFont);
-        lpBillNoField.setDisabledTextColor(Color.darkGray);
-        lpBillNoField.setBackground(lemonYellow);
-
-        bottomPanel.add(lpBillNoLabel);
-        bottomPanel.add(lpBillNoField);
-
-        pBillNoLabel = new JLabel("P.No.");
-        pBillNoLabel.setFont(labelFont);
-
-        pBillNoField = new JTextField(4);
-        pBillNoField.setText("0");
-        pBillNoField.setFont(smallFont);
-        pBillNoField.setEnabled(false);
-        pBillNoField.setDisabledTextColor(Color.darkGray);
-        pBillNoField.setBackground(lemonYellow);
-
-        bottomPanel.add(pBillNoLabel);
-        bottomPanel.add(pBillNoField);
-
-        lpBillQtyLabel = new JLabel("L.P.Qty.");
-        lpBillQtyLabel.setFont(labelFont);
-
-        lpBillQtyField = new JTextField(4);
-        lpBillQtyField.setText("0");
-        lpBillQtyField.setEnabled(false);
-        lpBillQtyField.setFont(smallFont);
-        lpBillQtyField.setDisabledTextColor(Color.darkGray);
-        lpBillQtyField.setBackground(lemonYellow);
-
-        bottomPanel.add(lpBillQtyLabel);
-        bottomPanel.add(lpBillQtyField);
-
-        pBillQtyLabel = new JLabel("P.Qty.");
-        pBillQtyLabel.setFont(labelFont);
-
-        pBillQtyField = new JTextField(4);
-        pBillQtyField.setText("0");
-        pBillQtyField.setFont(smallFont);
-        pBillQtyField.setEnabled(false);
-        pBillQtyField.setDisabledTextColor(Color.darkGray);
-        pBillQtyField.setBackground(lemonYellow);
-
-        bottomPanel.add(pBillQtyLabel);
-        bottomPanel.add(pBillQtyField);
-
-        lpBillAmtLabel = new JLabel("L.P.Amt.");
-        lpBillAmtLabel.setFont(labelFont);
-
-        lpBillAmtField = new JTextField(7);
-        lpBillAmtField.setText("0.00");
-        lpBillAmtField.setFont(smallFont);
-        lpBillAmtField.setEnabled(false);
-        lpBillAmtField.setDisabledTextColor(Color.darkGray);
-        lpBillAmtField.setBackground(lemonYellow);
-
-        bottomPanel.add(lpBillAmtLabel);
-        bottomPanel.add(lpBillAmtField);
-
-        pBillAmtLabel = new JLabel("P.Amt.");
-        pBillAmtLabel.setFont(labelFont);
-
-        pBillAmtField = new JTextField(7);
-        pBillAmtField.setText("0.00");
-        pBillAmtField.setFont(smallFont);
-        pBillAmtField.setEnabled(false);
-        pBillAmtField.setDisabledTextColor(Color.darkGray);
-        pBillAmtField.setBackground(lemonYellow);
-
-        bottomPanel.add(pBillAmtLabel);
-        bottomPanel.add(pBillAmtField);
-
         billAmtLabel = new JLabel("Total :");
         billAmtLabel.setFont(labelFont);
 
@@ -735,30 +595,6 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
         bottomPanel.add(totalQtyLabel);
         bottomPanel.add(totalQtyField);
 
-        paidAmtLabel = new JLabel("Paid Amt.");
-        paidAmtLabel.setFont(labelFont);
-
-        paidAmtField = new JTextField(12);
-        paidAmtField.setBackground(lemonYellow);
-        paidAmtField.addKeyListener(this);
-        paidAmtField.addFocusListener(this);
-        paidAmtField.setFont(labelFont);
-
-        bottomPanel.add(paidAmtLabel);
-        bottomPanel.add(paidAmtField);
-
-        returnAmtLabel = new JLabel("Return Amt.");
-        returnAmtLabel.setFont(labelFont);
-
-        returnAmtField = new JTextField(12);
-        returnAmtField.setBackground(lemonYellow);
-        returnAmtField.setEnabled(false);
-        returnAmtField.setDisabledTextColor(Color.darkGray);
-        returnAmtField.setFont(labelFont);
-        returnAmtField.setHorizontalAlignment(SwingConstants.RIGHT);
-
-        bottomPanel.add(returnAmtLabel);
-        bottomPanel.add(returnAmtField);
     }
 
     public JButton getSaveBtn() {
@@ -911,7 +747,7 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
                             try {
                                 int rows = billTable.getRowCount();
 
-                                int billNo = Integer.parseInt(getLastId());
+                                int billNo = Integer.parseInt(getLastId("day_wise_entry_no", "sales_returns"));
                                 String name = custNameField.getText().trim().toUpperCase();
                                 String contact = mobileField.getText().trim().toUpperCase();
 
@@ -1124,7 +960,8 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
     HashMap<Integer, String> rowStockIdMap = new HashMap<>();
     CustomerView customerView;
 
-    public void keyReleased(KeyEvent e) {
+    public void keyPressed(KeyEvent e) {
+        super.keyPressed(e);
         String key = KeyEvent.getKeyText(e.getKeyCode());
         Object source = e.getSource();
 
@@ -1153,7 +990,7 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
                         rowStockIdMap.remove(tableModel.getValueAt(row, 13));
                         tableModel.removeRow(row);
                         calculate();
-                        updateSrNo(tableModel, cnt);
+                        cnt = updateSrNo(tableModel);
                         if (tableModel.getRowCount() == 0) {
                             pBarcodeField.requestFocus();
                             rowId = 1;

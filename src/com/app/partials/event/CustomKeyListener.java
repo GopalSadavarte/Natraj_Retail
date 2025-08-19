@@ -16,7 +16,7 @@ public class CustomKeyListener extends KeyAdapter {
             if (target instanceof JButton) {
                 ((JButton) target).doClick();
             } else {
-                target.requestFocusInWindow();
+                target.requestFocus();
                 if (target instanceof JTextField)
                     ((JTextField) target).selectAll();
             }

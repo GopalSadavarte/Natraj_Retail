@@ -13,7 +13,7 @@ public class SubGroupView extends JPanel implements AppConstants, TableExporter 
   final JTable table;
   final DefaultTableModel tableModel;
   TableRowSorter<TableModel> sorter;
-  public final JScrollPane scrollPane;
+  final JScrollPane scrollPane;
 
   public SubGroupView(JInternalFrame frame) {
     setLayout(new FlowLayout());
@@ -87,5 +87,9 @@ public class SubGroupView extends JPanel implements AppConstants, TableExporter 
 
   public JTable getTable() {
     return table;
+  }
+
+  public JScrollPane getScrollPane(){
+    return scrollPane;
   }
 }

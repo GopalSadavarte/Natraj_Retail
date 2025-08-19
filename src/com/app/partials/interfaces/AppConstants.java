@@ -18,7 +18,7 @@ public interface AppConstants {
     Font versionFont = new Font("Cambria", 30, 30);
     Font headingFont = new Font("Cambria", 40, 40);
     Font headingFont2 = new Font("Cambria", 32, 32);
-    Font smallFont = new Font("Cambria",15,15);
+    Font smallFont = new Font("Cambria", 15, 15);
 
     Color borderColor = new Color(235, 236, 236);
     Color lightYellow = new Color(255, 242, 129);
