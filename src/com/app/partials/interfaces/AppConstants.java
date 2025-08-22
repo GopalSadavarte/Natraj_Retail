@@ -1,10 +1,9 @@
 package com.app.partials.interfaces;
 
 import java.awt.*;
-import java.text.SimpleDateFormat;
-
-import javax.swing.BorderFactory;
-import javax.swing.border.Border;
+import java.text.*;
+import javax.swing.*;
+import javax.swing.border.*;
 
 public interface AppConstants {
 

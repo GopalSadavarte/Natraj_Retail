@@ -16,6 +16,8 @@ import com.app.components.reports.stock.*;
 import com.app.components.sales.*;
 import com.app.components.setting.*;
 import com.app.components.utilities.*;
+import com.app.partials.interfaces.*;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
@@ -98,9 +100,9 @@ public final class MDI extends Navbar {
                     return true;
                 }
 
-                if ((key.equals("F5") || key.equals("F7")) && frame instanceof SaleBill) {
+                if ((key.equals("F5") || key.equals("F7")) && frame instanceof Printable) {
                     dialogBox.setVisible(false);
-                    SaleBill bill = (SaleBill) frame;
+                    Printable bill = (Printable) frame;
                     OPTION_PANE_COUNT = 1;
                     if (key.equals("F5"))
                         bill.getPrintOption().setSelectedItem("Yes");

@@ -7,15 +7,15 @@ import com.app.components.abstracts.AbstractButton;
 import com.app.components.purchase.support.*;
 import com.app.config.*;
 import com.app.partials.event.*;
+import com.app.partials.interfaces.*;
 import com.toedter.calendar.*;
 import java.awt.*;
 import java.awt.event.*;
-import java.beans.*;
 import java.sql.*;
 import java.util.*;
 import java.util.Date;
 
-public final class SalesReturnEntry extends AbstractButton implements PropertyChangeListener, CellEditorListener {
+public final class SalesReturnEntry extends AbstractButton implements CellEditorListener, Printable {
 
     JLabel lastScannedItemLabel, dateLabel, billNoLabel, counterNoLabel, custNameLabel, custMobileLabel, pIdLabel,
             pBarcodeLabel, printLabel,
@@ -25,7 +25,7 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
     JPanel mainPanel, sidePanel, subBottomPanel, lastScannedItemPanel, billInfoPanel, custInfoPanel, billFormPanel,
             bottomPanel;
     JTextField billNoField, counterNoField, custNameField, mobileField, pBarcodeField, pIdField, pNameField, pQtyField,
-            pRateField, lastScannedItemField, creditNoteIdField, creditNoteAmtField,
+            pRateField, creditNoteIdField, creditNoteAmtField,
             pMRPField, billAmtField, returnAmtField, paidAmtField, pBillNoField, lpBillNoField, pBillAmtField,
             lpBillAmtField, totalQtyField, pDiscField, pBillQtyField, lpBillQtyField;
     JDateChooser dateChooser;
@@ -37,8 +37,6 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
     ProductView productView;
     JButton stockSelectBtn;
     int rowId = 1;
-    final Integer UPDATE_ACTION = -1, SAVE_ACTION = 1, DELETE_ACTION = 0;
-    Integer action = SAVE_ACTION;
 
     private void insertIntoBillTable() {
         try {
@@ -160,9 +158,6 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
                 pMRPField.setText(mrp);
                 discountVal = result.getDouble("discount");
 
-                int availableStock = getStock(Integer.parseInt(pIdField.getText()));
-                lastScannedItemField.setText(
-                        pBarcodeField.getText().trim() + " Item Name:" + pName + " Available Qty.:" + availableStock);
                 showStockList(pIdField.getText());
             } else {
                 JOptionPane.showMessageDialog(this, "In-correct barcode or item code...!", "Error",
@@ -180,17 +175,6 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
         } catch (Exception exc) {
             System.out.println(exc.getLocalizedMessage() + " at SaleBill.showProductDetails()");
         }
-    }
-
-    private int getStock(int pId) throws Exception {
-        PreparedStatement pst = DBConnection.con.prepareStatement(
-                "select sum(current_quantity) as qty from inventories where product_id = ?");
-        pst.setInt(1, pId);
-        ResultSet result = pst.executeQuery();
-        if (result.next()) {
-            return result.getInt("qty");
-        }
-        return 0;
     }
 
     private int checkRecordExist(String pId, double rate, double mrp) {
@@ -213,20 +197,6 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
         }
         return row;
     }
-
-    final KeyListener keyListenerToAddTableRecords = new KeyAdapter() {
-        public void keyPressed(KeyEvent e) {
-            String key = KeyEvent.getKeyText(e.getKeyCode());
-            Object source = e.getSource();
-            if (source.equals(pMRPField) && key.equals("Enter")) {
-                insertIntoBillTable();
-            }
-
-            if ((source.equals(pBarcodeField) || source.equals(pIdField)) && key.equals("Enter")) {
-                showProductDetails(source);
-            }
-        }
-    };
 
     private void showStockList(String pId) {
 
@@ -340,7 +310,6 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
         sidePanel.add(billInfoPanel);
         sidePanel.add(custInfoPanel);
         sidePanel.add(billFormPanel);
-        // sidePanel.add(lastScannedItemPanel);
         sidePanel.add(scrollPane);
         sidePanel.add(bottomPanel);
 
@@ -353,43 +322,11 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
         pRateField.addKeyListener(new CustomKeyListener(pMRPField));
 
         billNoField.setText(getLastId("day_wise_entry_no", "sales_returns"));
-        // setBottomFields();
         setVisible(true);
         SwingUtilities.invokeLater(() -> {
             pBarcodeField.requestFocus();
         });
     }
-
-    // private void setBottomFields() {
-    // try {
-    // String query = "select total_amount,day_wise_bill_no,sum(quantity) as qty
-    // from bills,sales where date(bills.created_at) = ? and bills.id =
-    // sales.bill_id group by bill_id,total_amount,day_wise_bill_no order by bill_id
-    // desc limit 2";
-    // PreparedStatement pst = DBConnection.con.prepareStatement(query);
-    // pst.setDate(1, new java.sql.Date(new Date().getTime()));
-    // ResultSet result = pst.executeQuery();
-    // while (result.next()) {
-    // String qty = result.getString("qty");
-    // String billNo = result.getString("day_wise_bill_no");
-    // String amount = result.getString("total_amount");
-    // if (result.getRow() == 1) {
-    // pBillNoField.setText(billNo);
-    // pBillAmtField.setText(amount);
-    // pBillQtyField.setText(qty);
-    // } else {
-    // lpBillNoField.setText(billNo);
-    // lpBillAmtField.setText(amount);
-    // lpBillQtyField.setText(qty);
-    // }
-    // }
-    // result.close();
-    // pst.close();
-    // } catch (Exception e) {
-    // JOptionPane.showMessageDialog(this, e.getMessage(), "Error",
-    // JOptionPane.ERROR_MESSAGE);
-    // }
-    // }
 
     private void allocateToTopPanel() {
 
@@ -402,7 +339,6 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
 
         dateChooser = new JDateChooser(new Date());
         dateChooser.setDateFormatString("dd-MM-yyyy");
-        dateChooser.addPropertyChangeListener("date", this);
         dateChooser.setEnabled(false);
         dateChooser.setPreferredSize(labelSize);
         dateChooser.setFont(labelFont);
@@ -481,7 +417,6 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
         pBarcodeField = new JTextField(7);
         pBarcodeField.addFocusListener(this);
         pBarcodeField.addActionListener(this);
-        pBarcodeField.addKeyListener(keyListenerToAddTableRecords);
         pBarcodeField.addKeyListener(this);
         pBarcodeField.setBackground(lemonYellow);
         pBarcodeField.setFont(labelFont);
@@ -497,7 +432,6 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
         pIdField.setBackground(lemonYellow);
         pIdField.addFocusListener(this);
         pIdField.addKeyListener(this);
-        pIdField.addKeyListener(keyListenerToAddTableRecords);
         pIdField.setFont(labelFont);
 
         billFormPanel.add(pIdLabel);
@@ -542,7 +476,6 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
         pMRPField = new JTextField(5);
         pMRPField.setBackground(lemonYellow);
         pMRPField.setFont(labelFont);
-        pMRPField.addKeyListener(keyListenerToAddTableRecords);
         pMRPField.addKeyListener(this);
         pMRPField.addFocusListener(this);
 
@@ -554,33 +487,6 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
         bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 5));
         bottomPanel.setBackground(Color.white);
         bottomPanel.setPreferredSize(new Dimension(1330 - 160, 80));
-
-        billAmtLabel = new JLabel("Total :");
-        billAmtLabel.setFont(labelFont);
-
-        billAmtField = new JTextField(10);
-        billAmtField.setFont(new Font("Cambria", 25, 25));
-        billAmtField.setHorizontalAlignment(SwingConstants.RIGHT);
-        billAmtField.setText("0.00");
-        billAmtField.setEnabled(false);
-        billAmtField.setDisabledTextColor(Color.darkGray);
-        billAmtField.setBackground(lemonYellow);
-
-        bottomPanel.add(billAmtLabel);
-        bottomPanel.add(billAmtField);
-
-        pDiscLabel = new JLabel("Disc.Amt.:");
-        pDiscLabel.setFont(labelFont);
-
-        pDiscField = new JTextField(5);
-        pDiscField.setFont(labelFont);
-        pDiscField.setEnabled(false);
-        pDiscField.setDisabledTextColor(Color.darkGray);
-        pDiscField.setBackground(lemonYellow);
-        pDiscField.setText("0.00");
-
-        bottomPanel.add(pDiscLabel);
-        bottomPanel.add(pDiscField);
 
         totalQtyLabel = new JLabel("T.Qty.:");
         totalQtyLabel.setFont(labelFont);
@@ -595,6 +501,32 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
         bottomPanel.add(totalQtyLabel);
         bottomPanel.add(totalQtyField);
 
+        pDiscLabel = new JLabel("Disc.Amt.:");
+        pDiscLabel.setFont(labelFont);
+
+        pDiscField = new JTextField(5);
+        pDiscField.setFont(labelFont);
+        pDiscField.setEnabled(false);
+        pDiscField.setDisabledTextColor(Color.darkGray);
+        pDiscField.setBackground(lemonYellow);
+        pDiscField.setText("0.00");
+
+        bottomPanel.add(pDiscLabel);
+        bottomPanel.add(pDiscField);
+
+        billAmtLabel = new JLabel("Total :");
+        billAmtLabel.setFont(labelFont);
+
+        billAmtField = new JTextField(10);
+        billAmtField.setFont(new Font("Cambria", 25, 25));
+        billAmtField.setHorizontalAlignment(SwingConstants.RIGHT);
+        billAmtField.setText("0.00");
+        billAmtField.setEnabled(false);
+        billAmtField.setDisabledTextColor(Color.darkGray);
+        billAmtField.setBackground(lemonYellow);
+
+        bottomPanel.add(billAmtLabel);
+        bottomPanel.add(billAmtField);
     }
 
     public JButton getSaveBtn() {
@@ -673,10 +605,6 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
 
     public void editingStopped(ChangeEvent e) {
         calculate();
-    }
-
-    public void propertyChange(PropertyChangeEvent e) {
-        //
     }
 
     public void focusGained(FocusEvent e) {
@@ -905,9 +833,6 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
                             pNameField.setText(pName);
                             pRateField.setText(rate);
                             pMRPField.setText(mrp);
-                            int availableStock = getStock(Integer.parseInt(pIdField.getText()));
-                            lastScannedItemField.setText(pBarcodeField.getText().trim() + " Item Name:" + pName
-                                    + " Available Qty.:" + availableStock);
                             showStockList(id);
                         } else {
                             JOptionPane.showMessageDialog(this, "Item not selected..!");
@@ -964,6 +889,14 @@ public final class SalesReturnEntry extends AbstractButton implements PropertyCh
         super.keyPressed(e);
         String key = KeyEvent.getKeyText(e.getKeyCode());
         Object source = e.getSource();
+
+        if (source.equals(pMRPField) && key.equals("Enter")) {
+            insertIntoBillTable();
+        }
+
+        if ((source.equals(pBarcodeField) || source.equals(pIdField)) && key.equals("Enter")) {
+            showProductDetails(source);
+        }
 
         if ((source.equals(pBarcodeField) || source.equals(pIdField)) && key.equals("F1")) {
             isForShowProductDetails = source.equals(pIdField);

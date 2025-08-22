@@ -7,6 +7,7 @@ import com.app.components.abstracts.AbstractButton;
 import com.app.components.purchase.support.*;
 import com.app.config.*;
 import com.app.partials.event.*;
+import com.app.partials.interfaces.*;
 import com.toedter.calendar.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -14,7 +15,7 @@ import java.sql.*;
 import java.util.*;
 import java.util.Date;
 
-public final class SaleBill extends AbstractButton implements CellEditorListener {
+public final class SaleBill extends AbstractButton implements CellEditorListener, Printable {
 
     JLabel lastScannedItemLabel, dateLabel, billNoLabel, counterNoLabel, custNameLabel, custMobileLabel, pIdLabel,
             pBarcodeLabel, printLabel,
@@ -87,8 +88,8 @@ public final class SaleBill extends AbstractButton implements CellEditorListener
                 tableModel.setValueAt(Double.parseDouble(tableModel.getValueAt(row, 4).toString()) + qtyVal,
                         row,
                         4);
-                        moveRow(tableModel,row,0);
-                        cnt = updateSrNo(tableModel);
+                moveRow(tableModel, row, 0);
+                cnt = updateSrNo(tableModel);
             }
 
             calculate();

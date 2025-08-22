@@ -179,8 +179,8 @@ public abstract class AbstractButton extends JInternalFrame
 
     protected void moveRow(DefaultTableModel model, int from, int to) {
         Object[] values = new Object[model.getColumnCount()];
-        for (int i = 0; i < values.length; i++)
-            values[i] = model.getValueAt(from, i);
+        for (int i = 0; i < values.length; values[i] = model.getValueAt(from, i), i++)
+            ;
         model.removeRow(from);
         model.insertRow(to, values);
     }
